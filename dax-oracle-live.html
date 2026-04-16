@@ -1,0 +1,2493 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAX Oracle LIVE — v13 Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f1f5f9; --bg2:#ffffff; --bg3:#f8fafc;
+  --border:#e2e8f0; --border2:#cbd5e1;
+  --text:#0f172a; --text2:#475569; --muted:#94a3b8;
+  --bull:#15803d; --bull-bg:#f0fdf4; --bull-bd:#86efac;
+  --bear:#dc2626; --bear-bg:#fff1f2; --bear-bd:#fca5a5;
+  --gold:#b45309; --gold-bg:#fffbeb; --gold-bd:#fcd34d;
+  --blue:#1d4ed8; --blue-bg:#eff6ff; --blue-bd:#93c5fd;
+  --purple:#7c3aed; --purple-bg:#faf5ff;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;display:flex;flex-direction:column}
+
+/* ── Topbar ── */
+.topbar{display:grid;grid-template-columns:240px 1fr 380px;align-items:center;gap:10px;padding:8px 14px;background:#1e293b;color:white;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono';font-size:10px;color:white;font-weight:700}
+.logo h1{font-size:14px;font-weight:800;letter-spacing:1.5px;color:white;line-height:1.1}
+.logo small{font-size:8px;color:#94a3b8;letter-spacing:1px}
+.topstats{display:flex;gap:2px;justify-content:center;flex-wrap:nowrap}
+.ts{padding:4px 9px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:3px;text-align:center;min-width:64px}
+.ts .tv{font-family:'IBM Plex Mono';font-size:12px;font-weight:600;color:white;line-height:1.2}
+.ts .tl{font-size:8px;color:#64748b;letter-spacing:.5px;margin-top:1px}
+.ts.hi{border-color:#3b82f6;background:rgba(59,130,246,0.15)}
+.ts.win .tv{color:#4ade80}
+.ts.loss .tv{color:#f87171}
+.dot{width:6px;height:6px;border-radius:50%;background:#475569;display:inline-block;margin-right:3px}
+.dot.live{background:#22c55e;box-shadow:0 0 5px #22c55e;animation:blink 1.5s infinite}
+.dot.err{background:#ff4560}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.topconn{display:flex;align-items:center;gap:5px}
+.ci{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:3px;color:white;font-family:'IBM Plex Mono';font-size:10px;padding:5px 7px}
+.ci.url{width:200px} .ci.sec{width:110px}
+.ci::placeholder{color:#475569}
+.ci:focus{outline:none;border-color:#3b82f6}
+.btn-conn{padding:6px 12px;border-radius:3px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:#3b82f6;color:white;white-space:nowrap}
+.btn-conn:hover{background:#2563eb}
+.btn-conn.on{background:#dc2626}
+
+/* ── MTF Strip ── */
+.mtf-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border2);flex-shrink:0;border-bottom:2px solid var(--border2)}
+.mc{background:white;padding:9px 12px;border-top:3px solid var(--border);transition:border-color .3s}
+.mc.bc{border-top-color:var(--bull)}
+.mc.rc{border-top-color:var(--bear)}
+.mc.fc{border-top-color:var(--gold)}
+.mc-tf{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:1px}
+.mc-bias{font-size:16px;font-weight:800;margin-bottom:3px;color:var(--muted)}
+.mc.bc .mc-bias{color:var(--bull)}
+.mc.rc .mc-bias{color:var(--bear)}
+.mc.fc .mc-bias{color:var(--gold)}
+.mc-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:5px}
+.mc-fill{height:100%;border-radius:2px;transition:width .8s}
+.mc-row{display:flex;gap:10px}
+.mc-row span{display:flex;flex-direction:column}
+.mc-row .sv{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;color:var(--text)}
+.mc-row .sl{font-size:8px;color:var(--muted);margin-top:1px}
+
+/* ── Consensus bar ── */
+.cons{display:flex;align-items:center;gap:8px;background:white;border-bottom:1px solid var(--border);padding:6px 14px;flex-shrink:0}
+.cons-lbl{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1.5px;white-space:nowrap}
+.cons-bar{flex:1;display:flex;height:18px;border-radius:2px;overflow:hidden;gap:1px;border:1px solid var(--border)}
+.cs{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;transition:flex .8s}
+.csb{background:#dcfce7;color:var(--bull)}
+.csf{background:#fef9c3;color:var(--gold)}
+.csr{background:#fee2e2;color:var(--bear)}
+.cons-v{font-size:14px;font-weight:800;white-space:nowrap;margin-left:2px}
+
+/* ── Main grid ── */
+.main{display:grid;grid-template-columns:240px 1fr 380px;gap:1px;background:var(--border);flex:1;min-height:0}
+.col{background:var(--bg);display:flex;flex-direction:column;gap:1px;min-height:0}
+.col.left,.col.right{overflow-y:auto}
+.col.left::-webkit-scrollbar,.col.right::-webkit-scrollbar{width:4px}
+.col.left::-webkit-scrollbar-thumb,.col.right::-webkit-scrollbar-thumb{background:var(--border2)}
+.col.center{display:flex;flex-direction:column}
+.panel{background:white;padding:10px 13px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.panel h3{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
+
+/* ── Filter chips ── */
+.preset-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.preset{padding:5px 8px;border:1px solid var(--border);background:white;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700;color:var(--text);letter-spacing:.3px;text-transform:uppercase}
+.preset:hover{background:var(--bg3)}
+.preset.active{background:var(--text);color:white;border-color:var(--text)}
+.chip-row{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.chip{padding:2px 7px;border:1px solid var(--border);background:white;border-radius:10px;cursor:pointer;font-family:'IBM Plex Mono';font-size:10px;font-weight:600;user-select:none;transition:all .15s}
+.chip:hover{background:var(--bg3)}
+.chip.skip{background:var(--bear-bg);color:var(--bear);border-color:var(--bear-bd);text-decoration:line-through}
+.chip.active{background:var(--text);color:white;border-color:var(--text)}
+
+/* ── Candle panel ── */
+.candle-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.cg{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9}
+.cg .l{font-size:9px;color:var(--muted);font-weight:600;letter-spacing:.5px}
+.cg .v{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;color:var(--text)}
+.cg .v.bv{color:var(--bull)}
+.cg .v.rv{color:var(--bear)}
+.cg .v.nv{color:var(--text2)}
+
+/* ── Signal box ── */
+.sig-wrap{position:relative}
+.sig-circle{width:140px;height:140px;margin:0 auto 12px;position:relative}
+.sig-circle svg{transform:rotate(-90deg)}
+.sig-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.sig-pct .p{font-family:'IBM Plex Mono';font-size:32px;font-weight:700;color:var(--gold)}
+.sig-pct .d{font-size:11px;font-weight:700;color:var(--gold);margin-top:2px;letter-spacing:1px}
+.sig-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9}
+.sig-row .sl{font-size:9px;color:var(--muted);font-weight:600;letter-spacing:.5px}
+.sig-row .sv4{font-family:'IBM Plex Mono';font-size:13px;font-weight:700}
+.sig-row .sv4.bv{color:var(--bull)}
+.sig-row .sv4.rv{color:var(--bear)}
+.sig-row .sv4.nv{color:var(--text)}
+.setup-tag{display:inline-block;padding:3px 8px;background:var(--purple-bg);color:var(--purple);border-radius:3px;font-size:10px;font-weight:700;letter-spacing:.5px;margin-top:6px}
+.score-box{display:inline-block;padding:3px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;font-family:'IBM Plex Mono';font-size:11px;font-weight:700;margin-left:6px}
+
+/* ── Status ── */
+.status-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.5px}
+.sp-pending{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd)}
+.sp-active{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-bd)}
+.sp-win{background:var(--bull-bg);color:var(--bull);border:1px solid var(--bull-bd)}
+.sp-loss{background:var(--bear-bg);color:var(--bear);border:1px solid var(--bear-bd)}
+.sp-expired{background:#f1f5f9;color:var(--muted);border:1px solid var(--border)}
+.sp-waiting{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}
+
+/* ── Predictions table ── */
+.pred-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono';font-size:10px}
+.pred-table th{text-align:left;padding:5px 6px;background:var(--bg3);font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1}
+.pred-table td{padding:4px 6px;border-bottom:1px solid #f1f5f9}
+.pred-table tr.wr td{background:rgba(34,197,94,0.04)}
+.pred-table tr.lr td{background:rgba(220,38,38,0.04)}
+.pred-table tr.or td{background:rgba(59,130,246,0.04)}
+.pred-table tr.pr td{background:rgba(180,83,9,0.04)}
+.pbadge{display:inline-block;padding:1px 5px;border-radius:2px;font-size:9px;font-weight:700;letter-spacing:.3px}
+.pbadge.pw{background:var(--bull-bg);color:var(--bull)}
+.pbadge.pl2{background:var(--bear-bg);color:var(--bear)}
+.pbadge.po{background:var(--blue-bg);color:var(--blue)}
+.pbadge.pp{background:var(--gold-bg);color:var(--gold)}
+.pbadge.pe{background:#f1f5f9;color:var(--muted)}
+
+/* ── Chart ── */
+.chart-wrap{flex:1;background:white;position:relative;min-height:0;overflow:hidden}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.chart-overlay{position:absolute;top:8px;left:10px;right:10px;z-index:2;display:flex;gap:6px;font-family:'IBM Plex Mono';font-size:10px;color:var(--muted);align-items:center}
+.chart-overlay > span{padding:2px 6px;background:rgba(255,255,255,0.92);border:1px solid var(--border);border-radius:2px}
+.chart-cur{font-family:'IBM Plex Mono';font-weight:700;color:var(--text)}
+.chart-btn{padding:2px 8px;background:rgba(255,255,255,0.95);border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono';font-size:12px;font-weight:700;color:var(--text);min-width:24px;line-height:1.2}
+.chart-btn:hover{background:var(--bg3);border-color:var(--text2)}
+.chart-scrollbar-wrap{display:flex;align-items:center;gap:4px;padding:5px 8px;background:#f8fafc;border-top:1px solid var(--border);flex-shrink:0}
+.chart-scrollbar-wrap input[type=range]{height:6px;cursor:pointer;accent-color:var(--blue);flex:1}
+.scroll-btn{padding:3px 8px;background:white;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono';font-size:10px;font-weight:700;color:var(--text2);min-width:30px}
+.scroll-btn:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)}
+
+/* ── Execute box ── */
+.exec-wrap{padding:10px 13px;background:linear-gradient(135deg,var(--bull-bg),white);border:2px solid var(--bull);border-radius:5px;margin:0 13px 10px}
+.exec-wrap.bear-mode{background:linear-gradient(135deg,var(--bear-bg),white);border-color:var(--bear)}
+.exec-wrap.hidden{display:none}
+.exec-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+.exec-row .l{font-size:9px;color:var(--text2);font-weight:600;letter-spacing:.5px}
+.exec-row .v{font-family:'IBM Plex Mono';font-size:13px;font-weight:700}
+.btn-exec{width:100%;padding:9px;font-size:13px;font-weight:800;letter-spacing:1px;border:none;border-radius:3px;cursor:pointer;color:white;margin-top:8px}
+.btn-exec.lb{background:var(--bull)}
+.btn-exec.lb:hover{background:#166534}
+.btn-exec.sb{background:var(--bear)}
+.btn-exec.sb:hover{background:#b91c1c}
+.btn-cancel{padding:6px 10px;font-size:10px;font-weight:600;background:white;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text2);margin-top:5px}
+.exec-econtr{width:50px;font-family:'IBM Plex Mono';font-size:13px;font-weight:700;padding:4px 6px;border:1px solid var(--border);border-radius:3px;text-align:center}
+
+/* ── Stats ── */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.stat-box{padding:6px;background:var(--bg3);border-radius:3px;text-align:center}
+.stat-box .lbl{font-size:8px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.stat-box .val{font-family:'IBM Plex Mono';font-size:14px;font-weight:700;margin-top:2px;color:var(--text)}
+.stat-box.pos .val{color:var(--bull)}
+.stat-box.neg .val{color:var(--bear)}
+
+/* ── Confirm modal ── */
+.confov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:100}
+.confov.show{display:flex}
+.confbx{background:white;border-radius:6px;padding:24px;max-width:420px;width:90%}
+.confbx h2{font-size:18px;font-weight:800;margin-bottom:14px;letter-spacing:.5px}
+.confd{margin:6px 0;display:flex;justify-content:space-between;font-family:'IBM Plex Mono';font-size:13px}
+.confd .l{color:var(--muted)}
+.confd .v{font-weight:700}
+.confbtns{display:flex;gap:8px;margin-top:18px}
+.confbtns button{flex:1;padding:10px;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:12px}
+.btn-cy2{color:white}
+.btn-cy2.lc2{background:var(--bull)}
+.btn-cy2.sc2{background:var(--bear)}
+.btn-cn2{background:var(--bg3);color:var(--text)}
+
+/* ── Misc ── */
+.empty{padding:20px;text-align:center;color:var(--muted);font-style:italic;font-size:11px}
+.hidden{display:none}
+.legend{padding:10px 13px;font-size:10px;color:var(--text2);background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:3px;margin:8px 13px;line-height:1.5}
+.legend strong{color:var(--blue)}
+
+/* ── Responsive ── */
+/* 1500px+: full layout */
+/* 1100-1500px: smaller sidebars */
+@media (max-width:1500px){
+  .topbar{grid-template-columns:200px 1fr 320px}
+  .main{grid-template-columns:200px 1fr 320px}
+  .ci.url{width:160px}
+  .ci.sec{width:80px}
+  .ts{min-width:54px;padding:4px 6px}
+  .ts .tv{font-size:11px}
+}
+/* 1100-1280px: even kleiner */
+@media (max-width:1280px){
+  .topbar{grid-template-columns:160px 1fr 280px}
+  .main{grid-template-columns:180px 1fr 280px}
+  .ci.url{width:130px;font-size:9px}
+  .ci.sec{width:70px;font-size:9px}
+  .topstats{gap:1px}
+  .ts{min-width:46px;padding:3px 5px}
+  .ts .tv{font-size:10px}
+  .ts .tl{font-size:7px}
+  .logo h1{font-size:12px;letter-spacing:1px}
+  .logo small{font-size:7px}
+  .panel{padding:8px 10px}
+  .pred-table{font-size:9px}
+  .pred-table th, .pred-table td{padding:3px 4px}
+  .mc{padding:6px 8px}
+  .mc-bias{font-size:13px}
+  .mc-row .sv{font-size:10px}
+}
+/* <1100px: stack alles verticaal (mobile/tablet) */
+@media (max-width:1100px){
+  html,body{height:auto;overflow:auto}
+  .main{grid-template-columns:1fr;overflow-y:auto}
+  .topbar{grid-template-columns:1fr;gap:8px}
+  .col.left,.col.right{max-height:none;overflow-y:visible}
+  .col.center{min-height:500px}
+  .mtf-strip{grid-template-columns:repeat(3,1fr)}
+  .mc:nth-child(4),.mc:nth-child(5){grid-column:span 1}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ TOPBAR ═══════ -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">v13</div>
+    <div>
+      <h1>NQ ORACLE LIVE</h1>
+      <small>Deterministic engine · backtest = live</small>
+    </div>
+  </div>
+  <div class="topstats">
+    <div class="ts"><div class="tv" id="ts-candles">0</div><div class="tl">CANDLES</div></div>
+    <div class="ts"><div class="tv" id="ts-signals">0</div><div class="tl">SIGNALS</div></div>
+    <div class="ts win"><div class="tv" id="ts-wins">0</div><div class="tl">WINS</div></div>
+    <div class="ts loss"><div class="tv" id="ts-losses">0</div><div class="tl">LOSSES</div></div>
+    <div class="ts hi"><div class="tv" id="ts-wr">--</div><div class="tl">WIN RATE</div></div>
+    <div class="ts hi"><div class="tv" id="ts-pnl">+0</div><div class="tl">P&amp;L pt</div></div>
+  </div>
+  <div class="topconn">
+    <span class="dot" id="dot-conn"></span>
+    <span style="font-size:9px;letter-spacing:.5px" id="conn-text">OFF</span>
+    <input type="text" class="ci url" id="srv-url" placeholder="server URL" value="https://web-production-e596.up.railway.app">
+    <input type="text" class="ci sec" id="srv-sec" placeholder="secret" value="NQsecret2024">
+    <button class="btn-conn" id="btn-conn" onclick="toggleConn()">▶ CONNECT</button>
+    <input type="file" id="seed-csv" accept=".csv" style="display:none">
+    <button class="btn-conn" style="background:#7c3aed" onclick="document.getElementById('seed-csv').click()" title="Laad CSV historiek voor instant warmup">📥 SEED</button>
+  </div>
+</div>
+
+<!-- ═══════ MTF STRIP ═══════ -->
+<div class="mtf-strip" id="mtf-strip">
+  <div class="mc" id="m1"><div class="mc-tf">1 MIN</div><div class="mc-bias">--</div><div class="mc-bar"><div class="mc-fill" id="mf1"></div></div><div class="mc-row"><span><span class="sv" id="mc1">--</span><span class="sl">close</span></span><span><span class="sv" id="mr1">--</span><span class="sl">RSI</span></span><span><span class="sv" id="ma1">--</span><span class="sl">ATR</span></span></div></div>
+  <div class="mc" id="m5"><div class="mc-tf">5 MIN</div><div class="mc-bias">--</div><div class="mc-bar"><div class="mc-fill" id="mf5"></div></div><div class="mc-row"><span><span class="sv" id="mc5">--</span><span class="sl">close</span></span><span><span class="sv" id="mr5">--</span><span class="sl">RSI</span></span><span><span class="sv" id="ma5">--</span><span class="sl">ATR</span></span></div></div>
+  <div class="mc" id="m15"><div class="mc-tf">15 MIN</div><div class="mc-bias">--</div><div class="mc-bar"><div class="mc-fill" id="mf15"></div></div><div class="mc-row"><span><span class="sv" id="mc15">--</span><span class="sl">close</span></span><span><span class="sv" id="mr15">--</span><span class="sl">RSI</span></span><span><span class="sv" id="ma15">--</span><span class="sl">ATR</span></span></div></div>
+  <div class="mc" id="m30"><div class="mc-tf">30 MIN</div><div class="mc-bias">--</div><div class="mc-bar"><div class="mc-fill" id="mf30"></div></div><div class="mc-row"><span><span class="sv" id="mc30">--</span><span class="sl">close</span></span><span><span class="sv" id="mr30">--</span><span class="sl">RSI</span></span><span><span class="sv" id="ma30">--</span><span class="sl">ATR</span></span></div></div>
+  <div class="mc" id="m60"><div class="mc-tf">60 MIN</div><div class="mc-bias">--</div><div class="mc-bar"><div class="mc-fill" id="mf60"></div></div><div class="mc-row"><span><span class="sv" id="mc60">--</span><span class="sl">close</span></span><span><span class="sv" id="mr60">--</span><span class="sl">RSI</span></span><span><span class="sv" id="ma60">--</span><span class="sl">ATR</span></span></div></div>
+</div>
+
+<!-- ═══════ CONSENSUS ═══════ -->
+<div class="cons">
+  <span class="cons-lbl">MTF CONSENSUS</span>
+  <div class="cons-bar">
+    <div class="cs csb" id="cb" style="flex:0">0B</div>
+    <div class="cs csf" id="cf" style="flex:5">5F</div>
+    <div class="cs csr" id="cr" style="flex:0">0S</div>
+  </div>
+  <span class="cons-v" id="cv" style="color:var(--gold)">● MIXED</span>
+</div>
+
+<!-- ═══════ MAIN ═══════ -->
+<div class="main">
+
+  <!-- LEFT COLUMN: Engine config + filters -->
+  <div class="col left">
+
+    <!-- History import -->
+    <div class="panel">
+      <h3>📂 HISTORY BACKFILL</h3>
+      <p style="font-size:9px;color:var(--muted);line-height:1.4;margin-bottom:6px">
+        Upload TradingView 1-min CSV om de engine direct te starten met genoeg context (≥300 candles nodig voor signalen).
+      </p>
+      <input type="file" id="hist-csv" accept=".csv" style="width:100%;font-size:9px;padding:3px;border:1px solid var(--border);border-radius:3px;background:white">
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button class="btn-conn" id="btn-hist-local" onclick="loadHistoryLocal()" style="flex:1;font-size:10px;padding:5px;background:#475569" title="Alleen lokaal in browser laden (snel, geen server)">📥 LOCAL</button>
+        <button class="btn-conn" id="btn-hist-server" onclick="loadHistoryServer()" style="flex:1;font-size:10px;padding:5px;background:#3b82f6" title="Push naar server (cross-device + Pine kan voortbouwen)">☁ SERVER</button>
+      </div>
+      <p id="hist-status" style="font-size:9px;color:var(--muted);margin-top:4px;font-family:'IBM Plex Mono';min-height:11px"></p>
+    </div>
+
+    <!-- Engine config -->
+    <div class="panel">
+      <h3>⚙ ENGINE PARAMS</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">TIMEFRAME</span>
+          <select id="p-tf" style="font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px">
+            <option value="1">1 min</option>
+            <option value="3">3 min</option>
+            <option value="5" selected>5 min</option>
+            <option value="15">15 min</option>
+          </select>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">SL × ATR</span>
+          <input type="number" id="p-sl" value="1.0" step="0.1" min="0.3" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">TP × SL</span>
+          <input type="number" id="p-tp" value="1.5" step="0.1" min="0.5" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">ATR MAX</span>
+          <input type="number" id="p-atrmax" value="45" min="5" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">MAX BARS</span>
+          <input type="number" id="p-maxbars" value="19" min="3" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">MIN SCORE</span>
+          <input type="number" id="p-minscore" value="4" min="1" max="15" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">HTF FILTER</span>
+          <select id="p-htf" style="font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px">
+            <option value="yes" selected>AAN</option>
+            <option value="no">UIT</option>
+          </select>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">COOLDOWN</span>
+          <input type="number" id="p-cooldown" value="5" min="0" max="60" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center" title="Minuten geen nieuw signaal NA trade-close (niet tussen alle signalen)">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">DIRECTION</span>
+          <select id="p-dir" style="font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px">
+            <option value="both" selected>L+S</option>
+            <option value="long">LONG</option>
+            <option value="short">SHORT</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quality filters -->
+    <div class="panel">
+      <h3>★ QUALITY FILTERS</h3>
+      <div class="preset-row">
+        <button class="preset" data-preset="off">OFF</button>
+        <button class="preset active" data-preset="balanced">★ BAL</button>
+        <button class="preset" data-preset="quality">QUAL</button>
+        <button class="preset" data-preset="strict">STRICT</button>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:6px">Skip scores:</div>
+      <div class="chip-row" id="score-chips"></div>
+      <div style="font-size:9px;color:var(--muted);margin-top:6px">Setup mode:</div>
+      <select id="setup-filter" style="width:100%;font-family:'IBM Plex Mono';font-size:10px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;margin-top:3px">
+        <option value="all">All setups</option>
+        <option value="real">Skip 'none'</option>
+        <option value="ob_only">OB only</option>
+        <option value="ob_sweep">OB + Sweep</option>
+      </select>
+      <div style="font-size:9px;color:var(--muted);margin-top:6px">Skip uren (UTC):</div>
+      <div class="chip-row" id="hour-chips"></div>
+    </div>
+
+    <!-- Trading config -->
+    <div class="panel">
+      <h3>💰 ORDER CONFIG</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">CONTRACTS</span>
+          <input type="number" id="p-contracts" value="1" min="1" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">COMM (€)</span>
+          <input type="number" id="p-comm" value="3.60" step="0.10" min="0" style="width:55px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center">
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel">
+      <h3>📊 STATS</h3>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="lbl">N</div><div class="val" id="st-n">0</div></div>
+        <div class="stat-box"><div class="lbl">WR%</div><div class="val" id="st-wr">--</div></div>
+        <div class="stat-box"><div class="lbl">EV</div><div class="val" id="st-ev">--</div></div>
+        <div class="stat-box"><div class="lbl">P&amp;L pt</div><div class="val" id="st-pnl">--</div></div>
+        <div class="stat-box"><div class="lbl">PF</div><div class="val" id="st-pf">--</div></div>
+        <div class="stat-box"><div class="lbl">DD</div><div class="val" id="st-dd">--</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER COLUMN: Chart + execute -->
+  <div class="col center">
+    <div class="exec-wrap hidden" id="exec-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:13px;font-weight:800" id="ex-dir">▲ LONG</div>
+        <div class="status-pill sp-pending" id="ex-status">⌛ PENDING</div>
+      </div>
+      <div class="exec-row"><span class="l">SETUP</span><span class="v" id="ex-setup" style="color:var(--purple);font-size:11px">--</span></div>
+      <div class="exec-row"><span class="l">SCORE</span><span class="v" id="ex-score">--</span></div>
+      <div class="exec-row"><span class="l">ENTRY</span><span class="v" id="ex-entry">--</span></div>
+      <div class="exec-row"><span class="l">TARGET</span><span class="v" id="ex-target" style="color:var(--bull)">--</span></div>
+      <div class="exec-row"><span class="l">STOP</span><span class="v" id="ex-stop" style="color:var(--bear)">--</span></div>
+      <div class="exec-row"><span class="l">R:R</span><span class="v" id="ex-rr">--</span></div>
+      <div class="exec-row"><span class="l">CONTRACTS</span><input type="number" class="exec-econtr" id="ex-contr" value="1" min="1"></div>
+      <div class="exec-row"><span class="l">RISK / PROFIT</span><span class="v" id="ex-risk">--</span></div>
+      <button class="btn-exec lb" id="ex-btn" onclick="openConfirm()">▲ EXECUTE LONG</button>
+      <button class="btn-cancel" onclick="cancelExec()">✕ CANCEL</button>
+    </div>
+
+    <div class="chart-wrap" id="chart-wrap">
+      <div class="chart-overlay">
+        <span>DAX 1-MIN</span>
+        <span class="chart-cur" id="chart-cur">--</span>
+        <span id="chart-chg">--</span>
+        <span style="margin-left:auto;display:flex;gap:3px;align-items:center">
+          <button class="chart-btn" onclick="chartZoom(0.7)" title="Inzoomen (minder candles)">+</button>
+          <button class="chart-btn" onclick="chartZoom(1.4)" title="Uitzoomen (meer candles)">−</button>
+          <button class="chart-btn" onclick="chartReset()" title="Reset naar nu">⟳</button>
+          <span id="chart-zoom-info" style="font-family:'IBM Plex Mono';font-size:9px;color:#94a3b8;padding:0 4px">120c</span>
+        </span>
+      </div>
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="chart-scrollbar-wrap" id="chart-scroll-wrap">
+      <button class="scroll-btn" onclick="chartScroll(50)" title="Verder terug in tijd">◀◀</button>
+      <button class="scroll-btn" onclick="chartScroll(10)" title="Terug">◀</button>
+      <input type="range" id="chart-scroll" min="0" max="100" value="100" oninput="onScrollChange(this.value)" style="flex:1">
+      <button class="scroll-btn" onclick="chartScroll(-10)" title="Vooruit">▶</button>
+      <button class="scroll-btn" onclick="chartScroll(-50)" title="Naar nu">▶▶</button>
+      <span id="chart-scroll-info" style="font-family:'IBM Plex Mono';font-size:9px;color:#94a3b8;min-width:60px;text-align:right">NU</span>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: Predictions table + log -->
+  <div class="col right">
+    <div class="panel">
+      <h3>🎯 ACTIEF SIGNAAL</h3>
+      <div class="sig-wrap">
+        <div class="sig-circle">
+          <svg width="140" height="140">
+            <circle cx="70" cy="70" r="58" stroke="var(--border)" stroke-width="6" fill="none"/>
+            <circle id="ring" cx="70" cy="70" r="58" stroke="var(--gold)" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="0 365"/>
+          </svg>
+          <div class="sig-pct">
+            <div class="p" id="sig-score">--</div>
+            <div class="d" id="sig-dir">WACHTEN</div>
+          </div>
+        </div>
+        <div class="sig-row"><span class="sl">SETUP</span><span class="setup-tag" id="sig-setup">—</span></div>
+        <div class="sig-row"><span class="sl">ENTRY</span><span class="sv4 nv" id="sig-entry">--</span></div>
+        <div class="sig-row"><span class="sl">TARGET</span><span class="sv4 bv" id="sig-target">--</span></div>
+        <div class="sig-row"><span class="sl">STOP</span><span class="sv4 rv" id="sig-stop">--</span></div>
+        <div class="sig-row"><span class="sl">R:R</span><span class="sv4 nv" id="sig-rr">--</span></div>
+        <div class="sig-row"><span class="sl">ATR</span><span class="sv4 nv" id="sig-atr">--</span></div>
+        <div class="sig-row"><span class="sl">FILTER</span><span class="sv4 nv" id="sig-filter" style="font-size:10px">passed</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>📋 LIVE PREDICTIONS</h3>
+      <div style="max-height:340px;overflow-y:auto">
+        <table class="pred-table" id="pred-table">
+          <thead>
+            <tr>
+              <th>#</th><th>SIG</th><th>ENT</th><th>EXIT</th><th>DIR</th><th>SETUP</th><th>SC</th>
+              <th>ENTRY</th><th>TGT</th><th>STP</th><th>STATUS</th><th>P&amp;L</th>
+            </tr>
+          </thead>
+          <tbody id="pred-tbody">
+            <tr><td colspan="12" class="empty">Wacht op signaal…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>📜 LOG</h3>
+      <div id="log" style="font-family:'IBM Plex Mono';font-size:9px;max-height:120px;overflow-y:auto;background:#0f172a;color:#cbd5e1;padding:6px;border-radius:3px;line-height:1.4"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════ CONFIRM MODAL ═══════ -->
+<div class="confov" id="confov">
+  <div class="confbx">
+    <h2 id="conf-title">▲ LONG BEVESTIGEN</h2>
+    <div class="confd"><span class="l">Direction</span><span class="v" id="conf-dir">--</span></div>
+    <div class="confd"><span class="l">Contracts</span><span class="v" id="conf-c">--</span></div>
+    <div class="confd"><span class="l">Entry</span><span class="v" id="conf-e">--</span></div>
+    <div class="confd"><span class="l">Target</span><span class="v" id="conf-t" style="color:var(--bull)">--</span></div>
+    <div class="confd"><span class="l">Stop</span><span class="v" id="conf-s" style="color:var(--bear)">--</span></div>
+    <div class="confd"><span class="l">Risk</span><span class="v" id="conf-r">--</span></div>
+    <div class="confbtns">
+      <button class="btn-cy2 lc2" id="conf-yes" onclick="confirmOrder()">✓ BEVESTIG</button>
+      <button class="btn-cn2" onclick="closeConfirm()">✕ ANNULEER</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// PART 1/3 — STATE + HELPERS + V13 ENGINE
+// (engine is een 1-op-1 kopie van dax-oracle-master-v1.html runBacktestCore)
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── Globale state ───
+let connected = false;
+let serverUrl = '';
+let serverSecret = '';
+let pollTimer = null;
+let lastCandleTs = '';
+let candleBuffer = [];        // alle candles in master format {t,o,h,l,c,v}
+let predictions = [];         // alle predictions (geladen uit localStorage + server)
+let activePending = null;     // huidige pending limit setup
+let activeTrade = null;       // huidige live trade
+let lastCloseTime = 0;        // cooldown na elke trade close (wall-clock ms timestamp)
+let cooldownBars = 5;         // standaard 5 minuten geen nieuw signaal na close
+
+// ─── CHART ZOOM/SCROLL state ───
+let chartZoomCount = 120;     // aantal candles in view (zoom level)
+let chartScrollOffset = 0;    // hoeveel candles vanaf eind scrollen we terug (0 = nieuwste)
+const CHART_ZOOM_MIN = 30;
+const CHART_ZOOM_MAX = 800;
+let cBufForChart = [];        // candles voor chart (gewoon de raw stream)
+let signalCount = 0;
+let candleCount = 0;
+let curOrder = null;          // voor execute knop
+
+// Filter state — initieel BALANCED preset
+let skipScores = new Set([6]);
+let skipHours  = new Set([16,17]);
+let setupMode  = 'all';
+
+const SCORES = [3,4,5,6,7,8,9,10,11,12];
+const HOURS  = Array.from({length:24}, (_,i)=>i);
+
+const STORAGE_KEY = 'nq_oracle_predictions';
+const STORAGE_FILTERS = 'nq_oracle_filters';
+const STORAGE_PARAMS = 'nq_oracle_params';
+
+// ─── Helpers ───
+const $ = id => document.getElementById(id);
+const r2 = v => Math.round(v*100)/100;
+// FDAX tick = 0.5 punt (= €12.50 per tick). 1 punt = €25.
+// PT_VALUE wordt overal gebruikt voor P&L conversie naar EUR.
+const TICK_SIZE = 0.5;
+const PT_VALUE = 25;     // EUR per punt voor FDAX (Mini = 5)
+const CURRENCY = '€';
+const snapTick = v => Math.round(v / TICK_SIZE) * TICK_SIZE;
+// Voor stops/targets: round AWAY van entry (conservatief) zodat we niet binnen
+// de bedoelde range eindigen door tick-rounding.
+function snapStopBull(v){ return Math.floor(v / TICK_SIZE) * TICK_SIZE; }   // lager = veiliger voor LONG stop
+function snapStopBear(v){ return Math.ceil(v / TICK_SIZE) * TICK_SIZE; }    // hoger = veiliger voor SHORT stop
+function snapTgtBull(v){ return Math.floor(v / TICK_SIZE) * TICK_SIZE; }    // realistischer fill voor LONG target
+function snapTgtBear(v){ return Math.ceil(v / TICK_SIZE) * TICK_SIZE; }     // realistischer fill voor SHORT target
+function fmt(v, dec=2){ return v==null||isNaN(v) ? '--' : (+v).toFixed(dec); }
+function fmtPct(v){ return v==null||isNaN(v) ? '--' : v.toFixed(1)+'%'; }
+function nowIso(){ return new Date().toISOString(); }
+
+function lg(msg, type='info'){
+  const colors = {info:'#cbd5e1', ok:'#4ade80', warn:'#fbbf24', err:'#f87171'};
+  const el = $('log');
+  if(!el) return;
+  const time = new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const div = document.createElement('div');
+  div.style.color = colors[type] || '#cbd5e1';
+  div.textContent = `[${time}] ${msg}`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  while(el.children.length > 50) el.removeChild(el.firstChild);
+}
+
+// ─── localStorage persistence ───
+function savePredictions(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(predictions.slice(-1000))); }
+  catch(e){ lg('localStorage save fout: '+e.message, 'err'); }
+}
+function loadPredictions(){
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if(s){
+      predictions = JSON.parse(s);
+      lg(`Geladen: ${predictions.length} predictions uit localStorage`, 'ok');
+    }
+  } catch(e){ lg('localStorage load fout: '+e.message, 'err'); }
+}
+function saveFilters(){
+  try {
+    localStorage.setItem(STORAGE_FILTERS, JSON.stringify({
+      skipScores: [...skipScores],
+      skipHours: [...skipHours],
+      setupMode: setupMode
+    }));
+  } catch(e){}
+}
+function loadFilters(){
+  try {
+    const s = localStorage.getItem(STORAGE_FILTERS);
+    if(s){
+      const d = JSON.parse(s);
+      if(d.skipScores) skipScores = new Set(d.skipScores);
+      if(d.skipHours)  skipHours  = new Set(d.skipHours);
+      if(d.setupMode)  setupMode  = d.setupMode;
+    }
+  } catch(e){}
+}
+function saveParams(){
+  try {
+    const p = {};
+    ['p-tf','p-sl','p-tp','p-atrmax','p-maxbars','p-minscore','p-htf','p-dir','p-contracts','p-comm']
+      .forEach(id => p[id] = $(id).value);
+    localStorage.setItem(STORAGE_PARAMS, JSON.stringify(p));
+  } catch(e){}
+}
+function loadParams(){
+  try {
+    const s = localStorage.getItem(STORAGE_PARAMS);
+    if(s){
+      const p = JSON.parse(s);
+      Object.entries(p).forEach(([k,v]) => { if($(k)) $(k).value = v; });
+    }
+  } catch(e){}
+}
+
+// ─── V13 ENGINE — exact copy van master v1 ───
+function calcRollingHTF(rawCandles, endIdx, period){
+  const startIdx = Math.max(0, endIdx - period + 1);
+  if(endIdx - startIdx + 1 < period) return null;
+  let h = -Infinity, l = Infinity, vol = 0;
+  for(let i = startIdx; i <= endIdx; i++){
+    if(rawCandles[i].h > h) h = rawCandles[i].h;
+    if(rawCandles[i].l < l) l = rawCandles[i].l;
+    vol += rawCandles[i].v || 0;
+  }
+  return {
+    t: rawCandles[endIdx].t,
+    o: rawCandles[startIdx].o,
+    h, l,
+    c: rawCandles[endIdx].c,
+    v: vol
+  };
+}
+
+function emaUpdate(prev, val, period){
+  const k = 2/(period+1);
+  return prev == null ? val : prev * (1-k) + val * k;
+}
+
+/**
+ * Detect signal aan het EINDE van de candle stream.
+ * Werkt op de laatste ri (= rawCandles.length - 1) en geeft pending setup terug.
+ * Gebruikt rolling HTF logica zoals master v1 backtest.
+ */
+function detectLiveSignal(rawCandles, params){
+  const tf = params.tf, atrMax = params.atrMax, htfOn = params.htfOn, dirMode = params.dirMode;
+  const N = rawCandles.length;
+  if(N < tf * 60) return null; // need genoeg history
+
+  // Bouw alle rolling HTF candles + indicatoren tot end
+  const rollingHTF = new Array(N).fill(null);
+  for(let i = tf - 1; i < N; i++){
+    rollingHTF[i] = calcRollingHTF(rawCandles, i, tf);
+  }
+
+  const atrs = new Array(N).fill(0);
+  const e8   = new Array(N).fill(null);
+  const e21  = new Array(N).fill(null);
+  const e50  = new Array(N).fill(null);
+  const rsis = new Array(N).fill(50);
+  const vwaps= new Array(N).fill(null);
+
+  let avgGain = 0, avgLoss = 0, rsiInited = false;
+  let cumPV = 0, cumV = 0;
+  let prevDay = null;
+
+  for(let i = tf - 1; i < N; i++){
+    const htf = rollingHTF[i];
+    if(!htf) continue;
+    const tr = htf.h - htf.l;
+    atrs[i] = i === tf - 1 ? tr : (atrs[i-1] * 13 + tr) / 14;
+    e8[i]  = emaUpdate(e8[i-1],  htf.c, 8);
+    e21[i] = emaUpdate(e21[i-1], htf.c, 21);
+    e50[i] = emaUpdate(e50[i-1], htf.c, 50);
+
+    if(i > tf - 1){
+      const prevHTF = rollingHTF[i-1];
+      if(prevHTF){
+        const ch = htf.c - prevHTF.c;
+        const gain = ch > 0 ? ch : 0;
+        const loss = ch < 0 ? -ch : 0;
+        if(!rsiInited){ avgGain = gain; avgLoss = loss; rsiInited = true; }
+        else {
+          avgGain = (avgGain * 13 + gain) / 14;
+          avgLoss = (avgLoss * 13 + loss) / 14;
+        }
+        rsis[i] = avgLoss === 0 ? 100 : (100 - 100 / (1 + avgGain/avgLoss));
+      }
+    }
+
+    const day = htf.t.slice(0,10);
+    if(prevDay !== day){
+      cumPV = 0; cumV = 0; prevDay = day;
+    }
+    const tp = (htf.h + htf.l + htf.c) / 3;
+    const vol = htf.v || 1;
+    cumPV += tp * vol;
+    cumV  += vol;
+    vwaps[i] = cumV > 0 ? cumPV / cumV : tp;
+  }
+
+  // Detecteer signaal op laatste minuut
+  const ri = N - 1;
+  const htf = rollingHTF[ri - 1];
+  const atr = atrs[ri - 1];
+  if(!htf || !atr || atr <= 0 || atr > atrMax) return null;
+
+  const prev1 = rollingHTF[ri - 2];
+  const prev2 = rollingHTF[ri - 3];
+  const prev3 = rollingHTF[ri - 4];
+  if(!prev1 || !prev2) return null;
+
+  const ema8 = e8[ri - 1], ema21 = e21[ri - 1], ema50 = e50[ri - 1];
+  const rsi = rsis[ri - 1], vwap = vwaps[ri - 1];
+  if(ema8 == null || ema21 == null || vwap == null) return null;
+
+  const lookback = Math.max(tf, ri - 15 * tf);
+  const ema21Old = e21[lookback] || ema21;
+  const htfBull = htfOn ? (ema21 > ema21Old) : true;
+  const htfBear = htfOn ? (ema21 < ema21Old) : true;
+
+  let swH = htf.h, swL = htf.l;
+  for(let j = ri - 10; j < ri - 1; j++){
+    const r = rollingHTF[j];
+    if(r){ if(r.h > swH) swH = r.h; if(r.l < swL) swL = r.l; }
+  }
+
+  let bScore = 0, rScore = 0, bSetup = 'none', rSetup = 'none';
+
+  // 1. EMA alignment
+  if(ema8 > ema21 && ema21 > (ema50||ema21)) bScore += 3;
+  else if(ema8 > ema21) bScore += 1;
+  if(ema8 < ema21 && ema21 < (ema50||ema21)) rScore += 3;
+  else if(ema8 < ema21) rScore += 1;
+
+  // 2. VWAP
+  if(htf.c > vwap && prev1.c <= vwap) bScore += 2;
+  else if(htf.c > vwap) bScore += 1;
+  if(htf.c < vwap && prev1.c >= vwap) rScore += 2;
+  else if(htf.c < vwap) rScore += 1;
+
+  // 3. RSI
+  if(rsi < 35) bScore += 2; else if(rsi < 45) bScore += 1;
+  if(rsi > 65) rScore += 2; else if(rsi > 55) rScore += 1;
+
+  // 4. Liquidity sweep
+  const bSweep = htf.l < prev1.l && htf.l < prev2.l && htf.c > prev1.l && htf.c > htf.o;
+  const rSweep = htf.h > prev1.h && htf.h > prev2.h && htf.c < prev1.h && htf.c < htf.o;
+  if(bSweep){ bScore += 4; bSetup = 'liquidity_sweep'; }
+  if(rSweep){ rScore += 4; rSetup = 'liquidity_sweep'; }
+
+  // 5. Order block retest
+  const bOBbig = prev2.c > prev2.o && (prev2.c - prev2.o) > atr * 0.5;
+  const refOB = prev3 || prev2;
+  if(bOBbig && htf.l <= refOB.h && htf.l >= refOB.l && htf.c > htf.o && ema8 > ema21){
+    bScore += 3; if(bSetup === 'none') bSetup = 'ob_retest';
+  }
+  const rOBbig = prev2.c < prev2.o && (prev2.o - prev2.c) > atr * 0.5;
+  if(rOBbig && htf.h >= refOB.l && htf.h <= refOB.h && htf.c < htf.o && ema8 < ema21){
+    rScore += 3; if(rSetup === 'none') rSetup = 'ob_retest';
+  }
+
+  // 6. FVG fill
+  if(htf.l > prev2.h && htf.c >= prev2.h && htf.c <= htf.h && ema8 > ema21){
+    bScore += 2; if(bSetup === 'none') bSetup = 'fvg_fill';
+  }
+  if(htf.h < prev2.l && htf.c <= prev2.l && htf.c >= htf.l && ema8 < ema21){
+    rScore += 2; if(rSetup === 'none') rSetup = 'fvg_fill';
+  }
+
+  // 7. Break of structure
+  if(htf.c > swH && htf.c > htf.o && (htf.c - htf.o) > atr * 0.3){
+    bScore += 2; if(bSetup === 'none') bSetup = 'bos';
+  }
+  if(htf.c < swL && htf.c < htf.o && (htf.o - htf.c) > atr * 0.3){
+    rScore += 2; if(rSetup === 'none') rSetup = 'bos';
+  }
+
+  // 8. Volume spike
+  let avgV = 0, avgN = 0;
+  for(let j = Math.max(tf, ri - 10); j < ri; j++){
+    if(rollingHTF[j]){ avgV += rollingHTF[j].v; avgN++; }
+  }
+  avgV = avgN > 0 ? avgV / avgN : htf.v;
+  if(htf.v > avgV * 1.3){
+    if(htf.c > htf.o) bScore += 1; else rScore += 1;
+  }
+
+  // HTF filter penalty
+  if(!htfBull) bScore = Math.max(0, bScore - 3);
+  if(!htfBear) rScore = Math.max(0, rScore - 3);
+
+  let dir = null, score = 0, setup = 'none';
+  if(dirMode !== 'short' && bScore > rScore){ dir = 'bull'; score = bScore; setup = bSetup; }
+  else if(dirMode !== 'long' && rScore > bScore){ dir = 'bear'; score = rScore; setup = rSetup; }
+
+  if(!dir || score < params.minScore) return null;
+
+  const slSize = params.sl * atr;
+  const tpSize = slSize * params.tp;
+  const entryPriceRaw = htf.c;
+  const entryPrice = snapTick(entryPriceRaw);
+  let stop, tgt;
+  if(dir === 'bull'){
+    stop = snapStopBull(entryPrice - slSize);
+    tgt  = snapTgtBull(entryPrice + tpSize);
+  } else {
+    stop = snapStopBear(entryPrice + slSize);
+    tgt  = snapTgtBear(entryPrice - tpSize);
+  }
+
+  return {
+    dir, score, setup,
+    entry: entryPrice,
+    stop, tgt,
+    rr: params.tp,
+    atr: r2(atr),
+    rsi: r2(rsi),
+    signalTime: rawCandles[ri-1].t,
+    bScore, rScore
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PART 2/3 — LIVE PREDICTION TRACKING + FILTER SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+
+function getEngineParams(){
+  return {
+    tf: +$('p-tf').value || 5,
+    sl: +$('p-sl').value || 1.0,
+    tp: +$('p-tp').value || 1.5,
+    atrMax: +$('p-atrmax').value || 45,
+    maxBars: +$('p-maxbars').value || 19,
+    minScore: +$('p-minscore').value || 4,
+    htfOn: $('p-htf').value === 'yes',
+    dirMode: $('p-dir').value,
+    contracts: +$('p-contracts').value || 1,
+    commission: +$('p-comm').value || 3.0
+  };
+}
+
+function dayOfWeek(timeStr){
+  const m = timeStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return -1;
+  const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  return d.getUTCDay() === 0 ? 6 : d.getUTCDay() - 1;
+}
+
+function passesFilter(pred){
+  if(skipScores.has(pred.score)) return {ok:false, reason:`score ${pred.score} skipped`};
+  const hour = parseInt(pred.signalTime.slice(11,13));
+  if(skipHours.has(hour)) return {ok:false, reason:`hour ${hour} skipped`};
+  if(setupMode === 'real' && pred.setup === 'none') return {ok:false, reason:`'none' setup skipped`};
+  if(setupMode === 'ob_only' && pred.setup !== 'ob_retest') return {ok:false, reason:`only ob_retest`};
+  if(setupMode === 'ob_sweep' && !['ob_retest','liquidity_sweep'].includes(pred.setup)) return {ok:false, reason:`only ob+sweep`};
+  return {ok:true};
+}
+
+/**
+ * Wordt aangeroepen bij elke nieuwe candle.
+ * Regelt:
+ *   - Als geen actieve trade/pending: zoekt nieuwe signaal
+ *   - Als pending: check of entry geraakt is op nieuwe candle
+ *   - Als active: check of stop/target geraakt is op nieuwe candle
+ *   - Als bars > maxBars: expire
+ */
+function onNewCandle(rc){
+  const params = getEngineParams();
+  candleCount = candleBuffer.length;
+  $('ts-candles').textContent = candleCount;
+
+  // ─── 1. Update active trade ───
+  if(activeTrade){
+    let exit = null;
+    if(activeTrade.dir === 'bull'){
+      if(rc.l <= activeTrade.stop)      exit = {outcome:'LOSS', price:activeTrade.stop};
+      else if(rc.h >= activeTrade.tgt)  exit = {outcome:'WIN', price:activeTrade.tgt};
+    } else {
+      if(rc.h >= activeTrade.stop)      exit = {outcome:'LOSS', price:activeTrade.stop};
+      else if(rc.l <= activeTrade.tgt)  exit = {outcome:'WIN', price:activeTrade.tgt};
+    }
+    // Bar limit
+    activeTrade.barsOpen = (activeTrade.barsOpen || 0) + 1;
+    if(!exit && activeTrade.barsOpen >= params.maxBars * params.tf){
+      exit = {outcome:'EXPIRED', price:rc.c};
+    }
+    if(exit){
+      const dir = activeTrade.dir;
+      closeActiveTrade(exit.outcome, exit.price, rc.t);
+      lg(`TRADE ${exit.outcome} (${dir}) @ ${exit.price}`, exit.outcome === 'WIN' ? 'ok' : (exit.outcome === 'LOSS' ? 'err' : 'warn'));
+    }
+  }
+
+  // ─── 2. Update pending limit setup ───
+  else if(activePending){
+    let filled = false;
+    if(activePending.dir === 'bull' && rc.h >= activePending.entry) filled = true;
+    if(activePending.dir === 'bear' && rc.l <= activePending.entry) filled = true;
+
+    activePending.barsWaiting = (activePending.barsWaiting || 0) + 1;
+    if(filled){
+      // Capture levels BEFORE promote (zal activePending nullifyen)
+      const stp = activePending.stop;
+      const tgt = activePending.tgt;
+      const dr = activePending.dir;
+      const ep = activePending.entry;
+
+      // Direct stop-check binnen entry candle
+      let directStop = false, directTgt = false;
+      if(dr === 'bull'){
+        if(rc.l <= stp) directStop = true;
+        else if(rc.h >= tgt) directTgt = true;
+      } else {
+        if(rc.h >= stp) directStop = true;
+        else if(rc.l <= tgt) directTgt = true;
+      }
+
+      promotePendingToActive(rc.t);
+
+      if(directStop) closeActiveTrade('LOSS', stp, rc.t);
+      else if(directTgt) closeActiveTrade('WIN', tgt, rc.t);
+      else lg(`ENTRY FILLED ${dr} @ ${ep}`, 'ok');
+    }
+    else if(activePending.barsWaiting >= params.maxBars * params.tf){
+      lg(`Pending verlopen zonder fill (${activePending.dir} @ ${activePending.entry})`, 'warn');
+      cancelPending('expired_no_fill');
+    }
+  }
+
+  // ─── 3. Geen actieve trade/pending → zoek nieuw signaal (na cooldown) ───
+  if(!activeTrade && !activePending){
+    // Cooldown check op wall-clock tijd (niet op buffer index)
+    cooldownBars = +$('p-cooldown').value || 0;
+    const sinceCloseMin = lastCloseTime > 0 ? Math.floor((Date.now() - lastCloseTime) / 60000) : 9999;
+    if(cooldownBars > 0 && sinceCloseMin < cooldownBars){
+      $('sig-dir').textContent = `COOLDOWN ${cooldownBars - sinceCloseMin}m`;
+      $('sig-dir').style.color = 'var(--gold)';
+      $('sig-filter').textContent = `cooldown ${sinceCloseMin}/${cooldownBars}`;
+      $('sig-filter').style.color = 'var(--gold)';
+    } else {
+      const sig = detectLiveSignal(candleBuffer, params);
+      if(sig){
+      // ─── Filter check ───
+      const filter = passesFilter(sig);
+      if(!filter.ok){
+        $('sig-filter').textContent = filter.reason;
+        $('sig-filter').style.color = 'var(--bear)';
+        lg(`Signaal ${sig.dir} score ${sig.score} ${sig.setup} → GEFILTERD (${filter.reason})`, 'warn');
+        showSignalRing(sig, false);
+      } else if(isDuplicateSignal(sig)){
+        // ─── Fingerprint dedup: voorkom rapid-fire op dezelfde setup ───
+        $('sig-filter').textContent = 'duplicate (fingerprint)';
+        $('sig-filter').style.color = 'var(--gold)';
+        showSignalRing(sig, false);
+      } else {
+        // ─── Nieuw geldig signaal! ───
+        signalCount++;
+        $('ts-signals').textContent = signalCount;
+        $('sig-filter').textContent = '✓ passed';
+        $('sig-filter').style.color = 'var(--bull)';
+        createPending(sig);
+        lg(`★ SIGNAAL ${sig.dir.toUpperCase()} score ${sig.score} ${sig.setup} entry ${sig.entry}`, 'ok');
+        showSignalRing(sig, true);
+        showExecuteBox(sig);
+      }
+    } else {
+      // Geen signaal — toon laatste candle status
+      $('sig-dir').textContent = 'GEEN SIGNAAL';
+      $('sig-dir').style.color = 'var(--muted)';
+    }
+    }
+  }
+
+  renderPredictions();
+  renderStats();
+  drawChart();
+}
+
+/**
+ * Fingerprint dedup: weiger nieuwe signaal als binnen DEDUP_WINDOW minuten
+ * een prediction bestaat met zelfde dir + entry binnen 0.5pt tolerantie.
+ * Voorkomt dat 4 trades op zelfde minuut met identieke entry getriggerd worden
+ * door candle-buffer hiccups of close-her-open binnen 1 minuut.
+ */
+const DEDUP_WINDOW_MIN = 30;
+const DEDUP_PRICE_TOL = 0.5;
+function isDuplicateSignal(sig){
+  if(predictions.length === 0) return false;
+  const now = Date.now();
+  for(let i = predictions.length - 1; i >= 0; i--){
+    const p = predictions[i];
+    if(p.dir !== sig.dir) continue;
+    let ageMin = Infinity;
+    try {
+      const t = p.created_at ? new Date(p.created_at).getTime() : 0;
+      if(t) ageMin = (now - t) / 60000;
+    } catch(e){}
+    if(ageMin > DEDUP_WINDOW_MIN) break; // alle oudere zijn ook ouder
+    if(Math.abs(p.entry - sig.entry) <= DEDUP_PRICE_TOL){
+      lg(`DEDUP: ${sig.dir} entry ${sig.entry} dup van #${p.id} (${ageMin.toFixed(1)}m geleden)`, 'warn');
+      return true;
+    }
+  }
+  return false;
+}
+
+function createPending(sig){
+  activePending = {
+    id: predictions.length + 1,
+    dir: sig.dir,
+    score: sig.score,
+    setup: sig.setup,
+    entry: sig.entry,
+    stop: sig.stop,
+    tgt: sig.tgt,
+    rr: sig.rr,
+    atr: sig.atr,
+    signalTime: sig.signalTime,
+    barsWaiting: 0,
+    status: 'pending',
+    contracts: getEngineParams().contracts,
+    created_at: nowIso()
+  };
+
+  // Add to predictions log immediately
+  predictions.push({...activePending, outcome: 'pending'});
+  savePredictions();
+  // Probeer naar server te pushen (mag falen)
+  if(connected) pushPredictionToServer(activePending);
+}
+
+function promotePendingToActive(entryTime){
+  if(!activePending) return;
+  activeTrade = {
+    ...activePending,
+    entryTime: entryTime,
+    barsOpen: 0,
+    status: 'active'
+  };
+
+  // Update prediction log
+  const p = predictions.find(x => x.id === activeTrade.id);
+  if(p){
+    p.outcome = 'open';
+    p.entryTime = entryTime;
+    savePredictions();
+    if(connected) updatePredictionOnServer(p.id, {outcome:'open', entryTime: entryTime});
+  }
+  activePending = null;
+}
+
+function cancelPending(reason){
+  if(!activePending) return;
+  const p = predictions.find(x => x.id === activePending.id);
+  if(p){
+    p.outcome = 'expired';
+    p.exitReason = reason;
+    p.exitTime = nowIso();
+    savePredictions();
+    if(connected) updatePredictionOnServer(p.id, {outcome:'expired', exitReason: reason});
+  }
+  // Korte cooldown ook na pending-cancel
+  lastCloseTime = Date.now();
+  activePending = null;
+  $('exec-wrap').classList.add('hidden');
+  curOrder = null;
+}
+
+function closeActiveTrade(outcome, exitPrice, exitTime){
+  if(!activeTrade) return;
+  const params = getEngineParams();
+  // Commissie is in EUR (per side) → omzetten naar punten zodat we 1× kunnen aftrekken
+  const commPtsPerContract = params.commission / PT_VALUE;
+  const grossPnl = activeTrade.dir === 'bull'
+    ? exitPrice - activeTrade.entry
+    : activeTrade.entry - exitPrice;
+  // Net in punten (incl. commissie aftrek) — schaalt met contract aantal
+  const netPnl = (grossPnl - commPtsPerContract) * activeTrade.contracts;
+  const netCash = netPnl * PT_VALUE;
+
+  const p = predictions.find(x => x.id === activeTrade.id);
+  if(p){
+    p.outcome = outcome;
+    p.exitTime = exitTime;
+    p.exitPrice = exitPrice;
+    p.pnlPt = r2(netPnl);
+    p.pnlEur = r2(netCash); p.pnlUsd = p.pnlEur; // alias voor backwards compat
+    savePredictions();
+    if(connected) updatePredictionOnServer(p.id, {
+      outcome, exitTime, exitPrice,
+      pnlPt: p.pnlPt, pnlUsd: p.pnlUsd
+    });
+  }
+  // Cooldown: blokkeer nieuwe signalen voor X minuten na close
+  lastCloseTime = Date.now();
+  activeTrade = null;
+  $('exec-wrap').classList.add('hidden');
+  curOrder = null;
+}
+
+// ─── SERVER PUSH/PATCH ───
+async function pushPredictionToServer(pred){
+  try {
+    await fetch(`${serverUrl}/predictions`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-TV-Secret':serverSecret},
+      body: JSON.stringify(pred)
+    });
+  } catch(e){ /* niet kritiek */ }
+}
+async function updatePredictionOnServer(id, update){
+  try {
+    await fetch(`${serverUrl}/predictions/${id}`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','X-TV-Secret':serverSecret},
+      body: JSON.stringify(update)
+    });
+  } catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function showSignalRing(sig, valid){
+  const score = sig.score;
+  const maxScore = 12;
+  const pct = Math.min(100, score / maxScore * 100);
+  const circ = 2 * Math.PI * 58;
+  const fill = (pct/100) * circ;
+  const ring = $('ring');
+  const color = !valid ? 'var(--gold)' : (sig.dir === 'bull' ? 'var(--bull)' : 'var(--bear)');
+  ring.setAttribute('stroke-dasharray', `${fill} ${circ}`);
+  ring.setAttribute('stroke', color);
+  $('sig-score').textContent = score;
+  $('sig-score').style.color = color;
+  $('sig-dir').textContent = sig.dir === 'bull' ? '▲ LONG' : '▼ SHORT';
+  $('sig-dir').style.color = color;
+  $('sig-setup').textContent = sig.setup;
+  $('sig-entry').textContent = fmt(sig.entry);
+  $('sig-target').textContent = fmt(sig.tgt);
+  $('sig-stop').textContent = fmt(sig.stop);
+  $('sig-rr').textContent = '1:' + fmt(sig.rr, 1);
+  $('sig-atr').textContent = fmt(sig.atr);
+}
+
+function showExecuteBox(sig){
+  curOrder = {
+    action: sig.dir,
+    entry: sig.entry,
+    stop: sig.stop,
+    target: sig.tgt,
+    rr: sig.rr,
+    setup: sig.setup,
+    score: sig.score
+  };
+  const isLong = sig.dir === 'bull';
+  const w = $('exec-wrap');
+  w.classList.remove('hidden');
+  w.className = 'exec-wrap ' + (isLong ? '' : 'bear-mode');
+  $('ex-dir').textContent = isLong ? '▲ LONG' : '▼ SHORT';
+  $('ex-dir').style.color = isLong ? 'var(--bull)' : 'var(--bear)';
+  $('ex-status').textContent = '⌛ PENDING';
+  $('ex-status').className = 'status-pill sp-pending';
+  $('ex-setup').textContent = sig.setup;
+  $('ex-score').textContent = sig.score;
+  $('ex-entry').textContent = fmt(sig.entry);
+  $('ex-target').textContent = fmt(sig.tgt);
+  $('ex-stop').textContent = fmt(sig.stop);
+  $('ex-rr').textContent = '1:' + fmt(sig.rr, 1);
+  const btn = $('ex-btn');
+  btn.textContent = isLong ? '▲ EXECUTE LONG' : '▼ EXECUTE SHORT';
+  btn.className = 'btn-exec ' + (isLong ? 'lb' : 'sb');
+  updExecRisk();
+}
+
+function updExecRisk(){
+  if(!curOrder) return;
+  const c = +($('ex-contr').value) || 1;
+  const risk = Math.abs(curOrder.entry - curOrder.stop) * PT_VALUE * c;
+  const profit = Math.abs(curOrder.target - curOrder.entry) * PT_VALUE * c;
+  $('ex-risk').textContent = `-${CURRENCY}${risk.toFixed(0)} / +${CURRENCY}${profit.toFixed(0)}`;
+}
+
+function cancelExec(){
+  $('exec-wrap').classList.add('hidden');
+  curOrder = null;
+}
+
+function openConfirm(){
+  if(!curOrder) return;
+  const c = +($('ex-contr').value) || 1;
+  const isL = curOrder.action === 'bull';
+  $('confov').classList.add('show');
+  $('conf-title').textContent = isL ? '▲ LONG BEVESTIGEN' : '▼ SHORT BEVESTIGEN';
+  $('conf-title').style.color = isL ? 'var(--bull)' : 'var(--bear)';
+  $('conf-dir').textContent = isL ? '▲ LONG' : '▼ SHORT';
+  $('conf-dir').style.color = isL ? 'var(--bull)' : 'var(--bear)';
+  $('conf-c').textContent = `${c} FDAX contract(en)`;
+  $('conf-e').textContent = fmt(curOrder.entry);
+  $('conf-t').textContent = fmt(curOrder.target);
+  $('conf-s').textContent = fmt(curOrder.stop);
+  $('conf-r').textContent = `${CURRENCY}${(Math.abs(curOrder.entry - curOrder.stop) * PT_VALUE * c).toFixed(0)}`;
+  $('conf-yes').className = 'btn-cy2 ' + (isL ? 'lc2' : 'sc2');
+}
+function closeConfirm(){ $('confov').classList.remove('show'); }
+
+async function confirmOrder(){
+  if(!curOrder) return;
+  const c = +($('ex-contr').value) || 1;
+  const btn = $('conf-yes');
+  btn.textContent = '⟳';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${serverUrl}/execute`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-TV-Secret':serverSecret},
+      body: JSON.stringify({
+        action: curOrder.action === 'bull' ? 'long' : 'short',
+        entry: curOrder.entry,
+        stop: curOrder.stop,
+        target: curOrder.target,
+        contracts: c
+      })
+    });
+    const j = await r.json();
+    if(j.status === 'ok'){
+      closeConfirm();
+      const o = j.order;
+      lg(`✓ ORDER GEREGISTREERD: ${o.action} ${o.contracts}x @ ${o.entry}`, 'ok');
+      alert(`✓ ORDER GEREGISTREERD\n\n${o.action.toUpperCase()} ${o.contracts}x FDAX\nEntry:  ${o.entry}\nTarget: ${o.target} (+€${o.profit_usd?.toFixed(0)||'?'})\nStop:   ${o.stop} (-€${o.risk_usd?.toFixed(0)||'?'})\nR:R 1:${o.rr}\n\n➜ Voer uit in TradingView/IB:\nLimit @${o.entry} | TP @${o.target} | SL @${o.stop}`);
+    } else {
+      alert('Fout: ' + (j.error || '?'));
+    }
+  } catch(e){
+    alert('Server fout: ' + e.message);
+    lg('Order push fout: '+e.message, 'err');
+  } finally {
+    btn.textContent = '✓ BEVESTIG';
+    btn.disabled = false;
+  }
+}
+
+function renderPredictions(){
+  const tbody = $('pred-tbody');
+  if(!predictions.length){
+    tbody.innerHTML = '<tr><td colspan="12" class="empty">Wacht op signaal…</td></tr>';
+    return;
+  }
+
+  // Show last 30, newest first
+  const list = [...predictions].reverse().slice(0, 30);
+  tbody.innerHTML = list.map(p => {
+    const oc = p.outcome;
+    const rowCls = oc === 'WIN' ? 'wr' : (oc === 'LOSS' ? 'lr' : (oc === 'open' ? 'or' : (oc === 'pending' ? 'pr' : '')));
+    let badge = '<span class="pbadge pe">EXPIRED</span>';
+    if(oc === 'WIN') badge = '<span class="pbadge pw">✓ WIN</span>';
+    else if(oc === 'LOSS') badge = '<span class="pbadge pl2">✗ STOP</span>';
+    else if(oc === 'open') badge = '<span class="pbadge po">● OPEN</span>';
+    else if(oc === 'pending') badge = '<span class="pbadge pp">⌛ PEND</span>';
+    const dirCol = p.dir === 'bull' ? 'var(--bull)' : 'var(--bear)';
+    const pnl = p.pnlPt != null ? `<b style="color:${p.pnlPt>=0?'var(--bull)':'var(--bear)'}">${p.pnlPt>=0?'+':''}${p.pnlPt}</b>` : '--';
+    const sigT = p.signalTime ? p.signalTime.slice(11,16) : '--';
+    const entT = p.entryTime  ? p.entryTime.slice(11,16)  : '--';
+    const exiT = p.exitTime   ? p.exitTime.slice(11,16)   : '--';
+    return `<tr class="${rowCls}">
+      <td style="color:var(--muted)">#${p.id}</td>
+      <td>${sigT}</td>
+      <td style="color:var(--blue)">${entT}</td>
+      <td>${exiT}</td>
+      <td style="color:${dirCol};font-weight:700">${p.dir==='bull'?'▲':'▼'}</td>
+      <td style="font-size:9px">${p.setup||'?'}</td>
+      <td>${p.score||'?'}</td>
+      <td>${fmt(p.entry)}</td>
+      <td style="color:var(--bull)">${fmt(p.tgt)}</td>
+      <td style="color:var(--bear)">${fmt(p.stop)}</td>
+      <td>${badge}</td>
+      <td>${pnl}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStats(){
+  // Update colspan for empty state
+  const tbody = $('pred-tbody');
+  if(tbody && tbody.querySelector('.empty')){
+    tbody.innerHTML = '<tr><td colspan="12" class="empty">Wacht op signaal…</td></tr>';
+  }
+  // Filter predictions die WEL door de filters komen
+  const filtered = predictions.filter(p => {
+    const ok = passesFilter(p);
+    return ok.ok && p.outcome && p.outcome !== 'pending';
+  });
+  const closed = filtered.filter(p => p.outcome === 'WIN' || p.outcome === 'LOSS');
+  const wins = filtered.filter(p => p.outcome === 'WIN');
+  const losses = filtered.filter(p => p.outcome === 'LOSS');
+  const n = closed.length;
+  const wr = n ? wins.length / n * 100 : 0;
+  const pnl = closed.reduce((s,p) => s + (p.pnlPt||0), 0);
+  const ev = n ? pnl / n : 0;
+  const grossW = closed.filter(p => p.pnlPt > 0).reduce((s,p) => s + p.pnlPt, 0);
+  const grossL = Math.abs(closed.filter(p => p.pnlPt < 0).reduce((s,p) => s + p.pnlPt, 0));
+  const pf = grossL > 0 ? grossW / grossL : 0;
+
+  // Drawdown
+  let cum = 0, peak = 0, maxDD = 0;
+  closed.forEach(p => {
+    cum += (p.pnlPt || 0);
+    if(cum > peak) peak = cum;
+    if(peak - cum > maxDD) maxDD = peak - cum;
+  });
+
+  $('st-n').textContent = n;
+  $('st-wr').textContent = fmtPct(wr);
+  $('st-ev').textContent = fmt(ev);
+  $('st-pnl').textContent = (pnl >= 0 ? '+' : '') + fmt(pnl);
+  $('st-pf').textContent = pf > 0 ? fmt(pf) : '--';
+  $('st-dd').textContent = '-' + fmt(maxDD);
+
+  // Top bar updates
+  $('ts-wins').textContent = wins.length;
+  $('ts-losses').textContent = losses.length;
+  $('ts-wr').textContent = fmtPct(wr);
+  $('ts-pnl').textContent = (pnl >= 0 ? '+' : '') + fmt(pnl);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PART 3/3 — CONNECTION + POLLING + MTF + CHART + INIT
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── CONNECTION ───
+function toggleConn(){ connected ? disconnect() : connect(); }
+
+async function connect(){
+  const url = $('srv-url').value.trim().replace(/\/+$/,'');
+  const sec = $('srv-sec').value.trim();
+  if(!url){ alert('Vul de server URL in.'); return; }
+  serverUrl = url;
+  serverSecret = sec;
+
+  // Test connection eerst
+  try {
+    const r = await fetch(`${serverUrl}/`, {signal: AbortSignal.timeout(5000)});
+    const j = await r.json();
+    if(j.status !== 'online'){ throw new Error('Server niet online'); }
+    lg(`✓ Server: ${j.service||'unknown'} | ${j.candles||0} candles geladen`, 'ok');
+  } catch(e){
+    alert('Kon geen contact maken met server:\n' + e.message);
+    lg('Connect fout: '+e.message, 'err');
+    return;
+  }
+
+  connected = true;
+  $('btn-conn').textContent = '■ STOP';
+  $('btn-conn').classList.add('on');
+  $('conn-text').textContent = 'LIVE';
+  setDot('live');
+
+  // Eerst alle bestaande candles ophalen (zodat engine genoeg history heeft)
+  await loadInitialCandles();
+
+  // Start polling
+  poll();
+  pollTimer = setInterval(poll, 5000);
+  lg('Polling actief (5s interval)', 'info');
+}
+
+function disconnect(){
+  connected = false;
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+  $('btn-conn').textContent = '▶ CONNECT';
+  $('btn-conn').classList.remove('on');
+  $('conn-text').textContent = 'OFF';
+  setDot('off');
+  lg('Disconnected', 'warn');
+}
+
+function setDot(state){
+  const d = $('dot-conn');
+  d.className = 'dot' + (state === 'live' ? ' live' : (state === 'err' ? ' err' : ''));
+}
+
+// ─── INITIAL CANDLE LOAD ───
+// ─── HISTORY CSV IMPORT ───
+function parseHistoryCSV(txt){
+  const lines = txt.trim().split(/\r?\n/);
+  const h = lines[0].replace(/"/g,'').toLowerCase().split(',');
+  const gi = k => h.findIndex(x => x.trim() === k || x.trim().includes(k));
+  const ti = gi('time'), oi = gi('open'), hi = gi('high'), li = gi('low'), ci = gi('close'), vi = gi('volume');
+  if(ci < 0) throw new Error('CSV kolommen niet herkend (verwacht: time,open,high,low,close,volume)');
+  const out = [];
+  for(let i = 1; i < lines.length; i++){
+    const c = lines[i].replace(/"/g,'').split(',');
+    if(!c[ci]) continue;
+    let ts = (c[ti]||'').trim();
+    // UNIX timestamp → "YYYY-MM-DD HH:MM"
+    if(/^\d{9,11}$/.test(ts)){
+      const d = new Date(+ts * 1000);
+      const y = d.getUTCFullYear();
+      const mo = String(d.getUTCMonth()+1).padStart(2,'0');
+      const da = String(d.getUTCDate()).padStart(2,'0');
+      const hr = String(d.getUTCHours()).padStart(2,'0');
+      const mi = String(d.getUTCMinutes()).padStart(2,'0');
+      ts = `${y}-${mo}-${da} ${hr}:${mi}`;
+    }
+    const o = +c[oi]||0, hv = +c[hi]||0, lv = +c[li]||0, cv = +c[ci]||0;
+    if(cv > 0) out.push({t:ts, o, h:hv, l:lv, c:cv, v:+(c[vi]||c[6]||100)});
+  }
+  return out;
+}
+
+async function loadHistoryLocal(){
+  const file = $('hist-csv').files[0];
+  if(!file){ alert('Selecteer eerst een CSV bestand'); return; }
+  $('hist-status').textContent = 'CSV inlezen…';
+  try {
+    const txt = await file.text();
+    const candles = parseHistoryCSV(txt);
+    if(candles.length === 0) throw new Error('Geen geldige candles in CSV');
+
+    // Merge in candleBuffer met dedup op t
+    const existing = new Set(candleBuffer.map(c => c.t));
+    let added = 0;
+    for(const c of candles){
+      if(!existing.has(c.t)){
+        candleBuffer.push(c);
+        existing.add(c.t);
+        added++;
+      }
+    }
+    candleBuffer.sort((a,b) => a.t.localeCompare(b.t));
+    if(candleBuffer.length > 20000) candleBuffer = candleBuffer.slice(-20000);
+
+    // Chart toont nu de laatste chartZoomCount candles met scroll-offset
+    chartScrollOffset = 0;
+    cBufForChart = candleBuffer;
+    candleCount = candleBuffer.length;
+    $('ts-candles').textContent = candleCount;
+    if(candleBuffer.length > 0) lastCandleTs = candleBuffer[candleBuffer.length-1].t;
+
+    $('hist-status').innerHTML = `<span style="color:var(--bull)">✓ ${added} nieuwe candles geladen (totaal ${candleBuffer.length})</span>`;
+    lg(`History CSV: ${added} candles toegevoegd, totaal ${candleBuffer.length}`, 'ok');
+    updateScrollBar();
+    drawChart();
+
+    // Run engine eenmaal op huidige buffer om eventueel direct een signaal te detecteren
+    if(candleBuffer.length >= 300){
+      // Reset cooldown zodat we niet door history gaan handelen
+      lastCloseTime = 0;
+      lg(`Engine klaar voor live signalen (cooldown reset)`, 'ok');
+    }
+  } catch(e){
+    $('hist-status').innerHTML = `<span style="color:var(--bear)">✗ ${e.message}</span>`;
+    lg('History CSV fout: '+e.message, 'err');
+  }
+}
+
+async function loadHistoryServer(){
+  const file = $('hist-csv').files[0];
+  if(!file){ alert('Selecteer eerst een CSV bestand'); return; }
+  if(!connected){ alert('Verbind eerst met de server'); return; }
+  $('hist-status').textContent = 'CSV uploaden naar server…';
+  try {
+    const txt = await file.text();
+    const candles = parseHistoryCSV(txt);
+    if(candles.length === 0) throw new Error('Geen geldige candles in CSV');
+
+    // Push naar server in chunks van 500 om timeout te voorkomen
+    const chunkSize = 500;
+    let totalAdded = 0;
+    for(let i = 0; i < candles.length; i += chunkSize){
+      const chunk = candles.slice(i, i + chunkSize);
+      const r = await fetch(`${serverUrl}/import_history`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-TV-Secret':serverSecret},
+        body: JSON.stringify({candles: chunk})
+      });
+      const j = await r.json();
+      if(j.status !== 'ok') throw new Error(j.error || 'Server fout');
+      totalAdded += j.added || 0;
+      $('hist-status').textContent = `Upload: ${i + chunk.length}/${candles.length}…`;
+    }
+
+    $('hist-status').innerHTML = `<span style="color:var(--bull)">✓ ${totalAdded} candles toegevoegd op server</span>`;
+    lg(`Server: ${totalAdded} historische candles toegevoegd`, 'ok');
+
+    // Reload candles van server
+    await loadInitialCandles();
+  } catch(e){
+    $('hist-status').innerHTML = `<span style="color:var(--bear)">✗ ${e.message}</span>`;
+    lg('Server upload fout: '+e.message, 'err');
+  }
+}
+
+async function loadInitialCandles(){
+  try {
+    lg('Initiële candles ophalen…', 'info');
+    const r = await fetch(`${serverUrl}/candles?n=2000`);
+    const j = await r.json();
+    if(j.status === 'ok' && j.data){
+      // ─── MERGE met bestaande buffer (bv. CSV history) ipv overwrite ───
+      const existing = new Set(candleBuffer.map(c => c.t));
+      let added = 0;
+      for(const c of j.data){
+        if(!existing.has(c.t)){
+          candleBuffer.push(c);
+          existing.add(c.t);
+          added++;
+        }
+      }
+      candleBuffer.sort((a,b) => a.t.localeCompare(b.t));
+      if(candleBuffer.length > 20000) candleBuffer = candleBuffer.slice(-20000);
+
+      cBufForChart = candleBuffer; updateScrollBar();
+      candleCount = candleBuffer.length;
+      $('ts-candles').textContent = candleCount;
+      lg(`Server merge: +${added} candles (totaal ${candleBuffer.length})`, 'ok');
+      if(candleBuffer.length > 0) lastCandleTs = candleBuffer[candleBuffer.length-1].t;
+      drawChart();
+
+      // Probeer bestaande predictions ook van server te merge'n
+      const rp = await fetch(`${serverUrl}/predictions?n=500`);
+      const jp = await rp.json();
+      if(jp.status === 'ok' && jp.predictions){
+        // Merge server preds met local — server is de bron van waarheid
+        const localIds = new Set(predictions.map(p => p.id));
+        let added = 0;
+        jp.predictions.forEach(sp => {
+          if(!localIds.has(sp.id)){
+            predictions.push(sp);
+            added++;
+          }
+        });
+        if(added > 0){
+          predictions.sort((a,b) => a.id - b.id);
+          savePredictions();
+          lg(`Gemerged: ${added} predictions van server`, 'info');
+        }
+        renderPredictions();
+        renderStats();
+      }
+    } else {
+      lg('Server heeft nog geen candles', 'warn');
+    }
+  } catch(e){
+    lg('loadInitialCandles fout: '+e.message, 'err');
+  }
+}
+
+// ─── POLL ───
+async function poll(){
+  try {
+    const r = await fetch(`${serverUrl}/latest`, {signal: AbortSignal.timeout(4000)});
+    const j = await r.json();
+    setDot('live');
+
+    if(j.status === 'ok' && j.data){
+      const d = j.data;
+
+      // MTF update altijd
+      if(j.tf_data) updMTFstrip(j.tf_data);
+
+      // Bouw minuut-bucket string van received_at
+      const ts = d.received_at || '';
+      if(!ts) return;
+      const dt = new Date(ts);
+      const tStr = dt.toISOString().slice(0,16).replace('T',' ');
+
+      // ─── DEDUP op minuut-bucket (NIET op received_at, want server kan
+      // received_at updaten binnen dezelfde minuut bij meerdere webhooks) ───
+      if(tStr === lastCandleTs){
+        // Zelfde minuut die we al gezien hebben — alleen UI verversen, geen engine trigger
+        const lastInBuf = candleBuffer.length > 0 ? candleBuffer[candleBuffer.length-1] : null;
+        if(lastInBuf && lastInBuf.t === tStr){
+          lastInBuf.h = Math.max(lastInBuf.h, +d.high);
+          lastInBuf.l = Math.min(lastInBuf.l, +d.low);
+          lastInBuf.c = +d.close;
+          lastInBuf.v = +d.volume;
+        }
+        updCandleDisplay(d);
+        return;
+      }
+
+      // Nieuwe minuut!
+      lastCandleTs = tStr;
+      const newCandle = {
+        t: tStr,
+        o: +d.open || 0,
+        h: +d.high || 0,
+        l: +d.low || 0,
+        c: +d.close || 0,
+        v: +d.volume || 0
+      };
+
+      // Belt-and-suspenders: als laatste in buffer toch zelfde tStr heeft
+      // (kan na sort gebeuren), update ipv append
+      const lastInBuf = candleBuffer.length > 0 ? candleBuffer[candleBuffer.length-1] : null;
+      if(lastInBuf && lastInBuf.t === tStr){
+        lastInBuf.h = Math.max(lastInBuf.h, newCandle.h);
+        lastInBuf.l = Math.min(lastInBuf.l, newCandle.l);
+        lastInBuf.c = newCandle.c;
+        lastInBuf.v = newCandle.v;
+        updCandleDisplay(d);
+        drawChart();
+        return;
+      }
+
+      // Echte nieuwe candle — defensief dedupen
+      // Zoek in laatste 20 candles of deze t al bestaat (defense vs server bugs)
+      let dupIdx = -1;
+      for(let i = candleBuffer.length - 1; i >= Math.max(0, candleBuffer.length - 20); i--){
+        if(candleBuffer[i].t === tStr){ dupIdx = i; break; }
+      }
+      if(dupIdx >= 0){
+        // Update bestaande positie ipv append. Alleen loggen als OHLC echt verandert.
+        const old = candleBuffer[dupIdx];
+        const ohlcChanged = old.o !== newCandle.o || old.h !== newCandle.h || old.l !== newCandle.l || old.c !== newCandle.c;
+        candleBuffer[dupIdx] = newCandle;
+        if(ohlcChanged){
+          lg(`~candle ${tStr} OHLC bijgewerkt`, 'info');
+        }
+        // Geen append, geen sort, geen onNewCandle trigger — was al verwerkt
+        cBufForChart = candleBuffer;
+        updCandleDisplay(d);
+        drawChart();
+        return;
+      }
+      candleBuffer.push(newCandle);
+      if(candleBuffer.length > 20000) candleBuffer = candleBuffer.slice(-20000);
+      lg(`+candle ${tStr} OHLC=${newCandle.o}/${newCandle.h}/${newCandle.l}/${newCandle.c}`, 'info');
+      // Sorteer chronologisch (voor het geval out-of-order)
+      candleBuffer.sort((a,b) => a.t.localeCompare(b.t));
+      cBufForChart = candleBuffer; updateScrollBar();
+
+      updCandleDisplay(d);
+      onNewCandle(newCandle);
+    }
+  } catch(e){
+    setDot('err');
+  }
+}
+
+// ─── MTF STRIP ───
+function biasOf(d){
+  if(!d || !d.close) return {b:'flat', s:40};
+  const c = +d.close, o = +d.open || c;
+  const rsi = +d.rsi || 50;
+  const e21 = +d.ema21 || c;
+  let sc = 0;
+  if(c > o) sc++;
+  if(c > e21) sc++;
+  if(rsi > 55) sc++;
+  if(rsi < 45) sc--;
+  if(c < e21) sc--;
+  if(c < o) sc--;
+  if(sc >= 2) return {b:'bull', s:Math.min(90, 50 + sc*15)};
+  if(sc <= -2) return {b:'bear', s:Math.min(90, 50 + Math.abs(sc)*15)};
+  return {b:'flat', s:40};
+}
+
+function updMTFstrip(tf){
+  const tfs = ['1','5','15','30','60'];
+  let bulls = 0, bears = 0, flats = 0;
+  tfs.forEach(k => {
+    const d = tf[k];
+    if(!d || !d.close) return;
+    const {b, s} = biasOf(d);
+    const col = b === 'bull' ? 'var(--bull)' : (b === 'bear' ? 'var(--bear)' : 'var(--gold)');
+    const cls = b === 'bull' ? 'bc' : (b === 'bear' ? 'rc' : 'fc');
+    const txt = b === 'bull' ? '▲ LONG' : (b === 'bear' ? '▼ SHORT' : '● FLAT');
+    const card = $('m'+k);
+    if(card){
+      card.className = 'mc ' + cls;
+      const be = card.querySelector('.mc-bias');
+      if(be){ be.textContent = txt; be.style.color = col; }
+    }
+    const bar = $('mf'+k); if(bar){ bar.style.width = s+'%'; bar.style.background = col; }
+    const mc = $('mc'+k), mr = $('mr'+k), ma = $('ma'+k);
+    if(mc) mc.textContent = (+d.close).toFixed(2);
+    if(mr){
+      mr.textContent = (+d.rsi).toFixed(1);
+      mr.style.color = +d.rsi > 70 ? 'var(--bear)' : (+d.rsi < 30 ? 'var(--bull)' : 'var(--text2)');
+    }
+    if(ma) ma.textContent = (+d.atr).toFixed(2);
+    if(b === 'bull') bulls++;
+    else if(b === 'bear') bears++;
+    else flats++;
+  });
+
+  $('cb').style.flex = String(bulls);
+  $('cf').style.flex = String(flats || 0.1);
+  $('cr').style.flex = String(bears);
+  $('cb').textContent = bulls > 0 ? bulls + 'B' : '';
+  $('cf').textContent = flats > 0 ? flats + 'F' : '';
+  $('cr').textContent = bears > 0 ? bears + 'S' : '';
+  const v = $('cv');
+  if(bulls > bears && bulls > flats){ v.textContent = `▲ BULL ${bulls}/5`; v.style.color = 'var(--bull)'; }
+  else if(bears > bulls && bears > flats){ v.textContent = `▼ BEAR ${bears}/5`; v.style.color = 'var(--bear)'; }
+  else { v.textContent = '● MIXED'; v.style.color = 'var(--gold)'; }
+}
+
+function updCandleDisplay(d){
+  const cur = $('chart-cur');
+  if(cur) cur.textContent = (+d.close).toFixed(2);
+  const chg = $('chart-chg');
+  if(chg && cBufForChart.length > 1){
+    const prev = +cBufForChart[cBufForChart.length-2]?.c || +d.close;
+    const ch = +d.close - prev;
+    const pct = prev ? ch/prev*100 : 0;
+    chg.textContent = (ch >= 0 ? '+' : '') + ch.toFixed(2) + ' (' + pct.toFixed(2) + '%)';
+    chg.style.color = ch >= 0 ? 'var(--bull)' : 'var(--bear)';
+  }
+}
+
+// ─── CHART ───
+const canvas = $('chart');
+const ctx = canvas ? canvas.getContext('2d') : null;
+
+function resizeChart(){
+  if(!canvas) return;
+  const w = $('chart-wrap');
+  if(!w) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = w.clientWidth, H = w.clientHeight;
+  if(!W || !H) return;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(dpr, dpr);
+  drawChart();
+}
+
+function drawChart(){
+  if(!ctx) return;
+  const w = $('chart-wrap');
+  const W = w.clientWidth, H = w.clientHeight;
+  if(!W || !H) return;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  if(cBufForChart.length < 2){
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText(connected ? 'Wacht op live candle data…' : 'Niet verbonden', W/2, H/2);
+    return;
+  }
+
+  // ─── Layout (TradingView-style: prijs-as RECHTS, tijd-as ONDER) ───
+  const AXIS_R = 64;   // breder rechts voor labels
+  const AXIS_B = 24;
+  const PAD_L = 6;
+  const PAD_T = 8;
+  const cL = PAD_L, cR = W - AXIS_R, cT = PAD_T, cB = H - AXIS_B;
+  const cW = cR - cL, cH = cB - cT;
+
+  // ─── Hoeveel candles tonen — afhankelijk van zoom + scroll positie ───
+  const N = Math.min(cBufForChart.length, chartZoomCount);
+  // chartScrollOffset: 0 = end of buffer (now), positive = N candles back
+  const endIdx = Math.max(N, cBufForChart.length - chartScrollOffset);
+  const startIdx = Math.max(0, endIdx - N);
+  const candles = cBufForChart.slice(startIdx, endIdx);
+
+  // ─── Y-as range ───
+  let mn = Infinity, mx = -Infinity;
+  candles.forEach(c => { if(+c.l < mn) mn = +c.l; if(+c.h > mx) mx = +c.h; });
+  const trade = activeTrade || activePending;
+  if(trade){
+    if(trade.stop < mn) mn = trade.stop;
+    if(trade.stop > mx) mx = trade.stop;
+    if(trade.tgt < mn) mn = trade.tgt;
+    if(trade.tgt > mx) mx = trade.tgt;
+    if(trade.entry < mn) mn = trade.entry;
+    if(trade.entry > mx) mx = trade.entry;
+  }
+  // Ook visible historische trades meenemen — alleen als signal-time in venster valt
+  // (anders blow-up bij oude trades buiten beeld)
+  const visibleTimes = new Set(candles.map(c => c.t));
+  predictions.forEach(p => {
+    if(!p.entry || !p.stop || !p.tgt) return;
+    if(!p.signalTime || !visibleTimes.has(p.signalTime.slice(0,16))) return;
+    if(p.stop < mn) mn = p.stop;
+    if(p.stop > mx) mx = p.stop;
+    if(p.tgt < mn) mn = p.tgt;
+    if(p.tgt > mx) mx = p.tgt;
+    if(p.entry < mn) mn = p.entry;
+    if(p.entry > mx) mx = p.entry;
+  });
+  const rawRange = mx - mn;
+  const padPx = rawRange * 0.05;
+  mn -= padPx; mx += padPx;
+  // Snap naar tick boundaries voor mooie y-as
+  mn = Math.floor(mn / TICK_SIZE) * TICK_SIZE;
+  mx = Math.ceil(mx / TICK_SIZE) * TICK_SIZE;
+  const range = mx - mn;
+
+  const sp = cW / N;
+  const bw = Math.max(2, Math.min(11, sp * 0.7));
+  const toY = p => cT + cH * (1 - (p - mn) / (mx - mn));
+  const toX = i => cL + i * sp + sp/2;
+
+  // ─── 1. HORIZONTALE GRID (op tick-multiples, mooie ronde getallen) ───
+  // Bereken nice gridStep zodat er ~6-10 lines zijn
+  const targetLines = 8;
+  const rawStep = range / targetLines;
+  // NQ tick = 0.25 → mooie steps: 0.25, 0.5, 1, 2.5, 5, 10, 25, 50
+  const niceSteps = [0.25, 0.5, 1, 2.5, 5, 10, 25, 50, 100, 250];
+  let gridStep = niceSteps[niceSteps.length-1];
+  for(const s of niceSteps){ if(s >= rawStep){ gridStep = s; break; } }
+  const firstGrid = Math.ceil(mn / gridStep) * gridStep;
+
+  ctx.strokeStyle = '#f1f5f9';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for(let p = firstGrid; p <= mx; p = +(p + gridStep).toFixed(4)){
+    const y = toY(p);
+    if(y < cT - 1 || y > cB + 1) continue;
+    ctx.beginPath();
+    ctx.moveTo(cL, y);
+    ctx.lineTo(cR, y);
+    ctx.stroke();
+    // Label rechts (TradingView stijl)
+    ctx.fillText(p.toFixed(2), cR + 4, y);
+  }
+
+  // ─── 2. VERTICALE GRID + tijd labels ───
+  // Adaptieve density: bij weinig candles zien we elke minuut, bij veel alleen elke N
+  // Reken min pixel-gap per label uit; ~50px voor leesbaarheid
+  const minPxPerLabel = 50;
+  const maxLabels = Math.max(4, Math.floor(cW / minPxPerLabel));
+  // Hoeveel candles per label? Round naar mooie multiples (1, 2, 5, 10, 15, 30, 60, 120, ...)
+  const niceLabelSteps = [1, 2, 5, 10, 15, 30, 60, 120, 240, 480];
+  const rawStepX = Math.ceil(N / maxLabels);
+  let labelStep = niceLabelSteps[niceLabelSteps.length-1];
+  for(const s of niceLabelSteps){ if(s >= rawStepX){ labelStep = s; break; } }
+
+  // Vind eerste candle waarvan de minuut deelbaar is door labelStep
+  // (zodat labels op mooie tijden vallen: 19:00, 19:15, 19:30, ...)
+  const filteredLabels = [];
+  let prevDay = '';
+  candles.forEach((c, i) => {
+    const t = c.t || '';
+    if(t.length < 16) return;
+    const day = t.slice(0, 10);
+    const hr = parseInt(t.slice(11, 13));
+    const mn2 = parseInt(t.slice(14, 16));
+    const totalMin = hr * 60 + mn2;
+    const isNewDay = day !== prevDay && prevDay !== '';
+    const isLabelTime = labelStep <= 1 || (totalMin % labelStep === 0);
+    if(isLabelTime || isNewDay || (i === 0 && filteredLabels.length === 0)){
+      filteredLabels.push({
+        i,
+        x: toX(i),
+        text: isNewDay ? t.slice(5, 10) + ' ' + t.slice(11, 16) : t.slice(11, 16),
+        bold: isNewDay
+      });
+    }
+    prevDay = day;
+  });
+
+  ctx.strokeStyle = '#f1f5f9';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = '10px IBM Plex Mono';
+  filteredLabels.forEach(l => {
+    ctx.beginPath();
+    ctx.moveTo(l.x, cT);
+    ctx.lineTo(l.x, cB);
+    ctx.stroke();
+    ctx.font = (l.bold ? 'bold ' : '') + '10px IBM Plex Mono';
+    ctx.fillText(l.text, l.x, cB + 5);
+  });
+
+  // ─── 3. VOLUME bars onderaan (subtle) ───
+  const volH = Math.min(40, cH * 0.18);
+  const vmx = Math.max(...candles.map(c => +c.v || 0), 1);
+  candles.forEach((c, i) => {
+    const x = toX(i);
+    const isG = +c.c >= +c.o;
+    const vh = (+c.v || 0) / vmx * volH;
+    ctx.fillStyle = isG ? 'rgba(34,197,94,0.18)' : 'rgba(239,68,68,0.18)';
+    ctx.fillRect(x - bw/2, cB, bw, -vh);
+  });
+
+  // ─── 4. EMA21 lijn (oranje, dun) ───
+  if(candles.length > 21){
+    let ema = null;
+    const k = 2 / 22;
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    candles.forEach((c, i) => {
+      ema = ema == null ? +c.c : (+c.c) * k + ema * (1-k);
+      const x = toX(i), y = toY(ema);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  // ─── 5. CANDLES (TradingView-style: opvulling = body, lijn = wick) ───
+  const greenC = '#22c55e';
+  const redC = '#ef4444';
+  candles.forEach((c, i) => {
+    const x = toX(i);
+    const isG = +c.c >= +c.o;
+    const col = isG ? greenC : redC;
+    ctx.strokeStyle = col;
+    ctx.fillStyle = col;
+    ctx.lineWidth = 1.2;
+    // Wick
+    ctx.beginPath();
+    ctx.moveTo(x, toY(+c.h));
+    ctx.lineTo(x, toY(+c.l));
+    ctx.stroke();
+    // Body
+    const bt = toY(Math.max(+c.o, +c.c));
+    const bb = toY(Math.min(+c.o, +c.c));
+    const bh = Math.max(1, bb - bt);
+    if(isG){
+      // green = filled (TradingView default)
+      ctx.fillRect(x - bw/2, bt, bw, bh);
+    } else {
+      // red = filled
+      ctx.fillRect(x - bw/2, bt, bw, bh);
+    }
+  });
+
+  // ─── 6. TRADE MARKERS — alle signalen blijven in historiek zichtbaar ───
+  // Voor ELKE prediction die in het zichtbare candle-venster valt:
+  // - verticale signaal-marker (timestamp van signaal)
+  // - klein label bovenaan: dir-icoon + #id + tijd + outcome
+  // - horizontale TP en SL niveau-segmenten tussen signaal en exit
+  // - prijs-pillen voor TP en SL (kleine labels op de niveaus)
+  // - exit-marker (driehoek) op moment van WIN/LOSS
+  const candleTimeToIdx = new Map();
+  candles.forEach((c, i) => candleTimeToIdx.set(c.t, i));
+
+  const findIdx = (timeStr) => {
+    if(!timeStr) return -1;
+    if(candleTimeToIdx.has(timeStr)) return candleTimeToIdx.get(timeStr);
+    const tt = timeStr.slice(0, 16);
+    return candleTimeToIdx.has(tt) ? candleTimeToIdx.get(tt) : -1;
+  };
+  const clipX = x => Math.max(cL, Math.min(cR, x));
+
+  // Sorteer: actieve trade laatst → tekent bovenop historiek
+  const allPreds = [...predictions].sort((a, b) => {
+    const aActive = a.outcome === 'open' || a.outcome === 'pending' ? 1 : 0;
+    const bActive = b.outcome === 'open' || b.outcome === 'pending' ? 1 : 0;
+    return aActive - bActive;
+  });
+
+  // Track waar al een label staat (voorkom overlap bij signalen kort na elkaar)
+  const labelSlots = []; // array of {x, y, w, h}
+  const collides = (x, y, w, h) => labelSlots.some(s =>
+    !(x + w < s.x || x > s.x + s.w || y + h < s.y || y > s.y + s.h)
+  );
+
+  allPreds.forEach(p => {
+    if(!p.entry || !p.stop || !p.tgt) return;
+    const sigIdx = findIdx(p.signalTime);
+    if(sigIdx < 0) return;
+
+    // Eind van segment
+    let endIdx;
+    const isClosed = (p.outcome === 'WIN' || p.outcome === 'LOSS' || p.outcome === 'EXPIRED');
+    const isActive = (p.outcome === 'open' || p.outcome === 'pending');
+    if(isClosed && p.exitTime){
+      endIdx = findIdx(p.exitTime);
+      if(endIdx < 0) endIdx = candles.length - 1;
+    } else if(isActive){
+      endIdx = candles.length - 1;
+    } else {
+      endIdx = Math.min(sigIdx + 5, candles.length - 1);
+    }
+    if(endIdx <= sigIdx) endIdx = Math.min(sigIdx + 1, candles.length - 1);
+
+    const xSig = toX(sigIdx);
+    const xEnd = toX(endIdx);
+    const isWin = (p.outcome === 'WIN');
+    const isLoss = (p.outcome === 'LOSS');
+    const dirSym = p.dir === 'bull' ? '▲' : '▼';
+
+    // Outcome → kleur thema
+    const outcomeColor = isActive ? '#1d4ed8' : (isWin ? '#15803d' : (isLoss ? '#dc2626' : '#94a3b8'));
+    const outcomeBg    = isActive ? '#dbeafe' : (isWin ? '#dcfce7' : (isLoss ? '#fee2e2' : '#f1f5f9'));
+    const outcomeIcon  = isActive ? '●' : (isWin ? '✓' : (isLoss ? '✗' : '◌'));
+
+    // ─── Verticale signaal-marker (alle historiek zichtbaar) ───
+    ctx.strokeStyle = outcomeColor;
+    ctx.lineWidth = isActive ? 1.6 : 1;
+    ctx.setLineDash(isActive ? [] : [3, 3]);
+    ctx.globalAlpha = isActive ? 0.9 : 0.55;
+    ctx.beginPath();
+    ctx.moveTo(xSig, cT);
+    ctx.lineTo(xSig, cB);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1.0;
+
+    // ─── Horizontale TP/Entry/SL segmenten van signaal naar exit ───
+    const drawSeg = (price, color, isDashed) => {
+      const y = toY(price);
+      if(y < cT - 2 || y > cB + 2) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isActive ? 2 : 1.3;
+      ctx.globalAlpha = isActive ? 0.95 : 0.6;
+      ctx.setLineDash(isDashed ? [5, 3] : []);
+      ctx.beginPath();
+      ctx.moveTo(clipX(xSig), y);
+      ctx.lineTo(clipX(xEnd), y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1.0;
+    };
+    drawSeg(p.tgt, '#15803d', true);    // groen TP
+    drawSeg(p.entry, '#1d4ed8', false); // blauw entry
+    drawSeg(p.stop, '#dc2626', true);   // rood SL
+
+    // ─── Prijs-pillen op de TP en SL niveaus (klein, op signaal-moment) ───
+    const drawPricePill = (price, color, prefix) => {
+      const y = toY(price);
+      if(y < cT + 2 || y > cB - 2) return;
+      const txt = `${prefix} ${price.toFixed(2)}`;
+      ctx.font = 'bold 8px IBM Plex Mono';
+      const w = ctx.measureText(txt).width + 6;
+      const h = 11;
+      const x = xSig + 4;
+      ctx.globalAlpha = isActive ? 0.95 : 0.7;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y - h/2, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(txt, x + 3, y);
+      ctx.globalAlpha = 1.0;
+    };
+    drawPricePill(p.tgt, '#15803d', 'T');
+    drawPricePill(p.stop, '#dc2626', 'S');
+
+    // ─── Signaal-label bovenaan (id + tijd + outcome) ───
+    const sigT = (p.signalTime || '').slice(11, 16);
+    const lblText = `${dirSym} #${p.id} ${sigT} ${outcomeIcon}`;
+    ctx.font = 'bold 9px IBM Plex Mono';
+    const lblW = ctx.measureText(lblText).width + 8;
+    const lblH = 14;
+    // Stack labels verticaal als ze overlappen
+    let lblY = cT + 2;
+    while(collides(xSig - lblW/2, lblY, lblW, lblH) && lblY < cT + 60){
+      lblY += lblH + 2;
+    }
+    labelSlots.push({x: xSig - lblW/2, y: lblY, w: lblW, h: lblH});
+    ctx.fillStyle = outcomeColor;
+    ctx.globalAlpha = isActive ? 1.0 : 0.85;
+    ctx.fillRect(xSig - lblW/2, lblY, lblW, lblH);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lblText, xSig, lblY + lblH/2 + 0.5);
+    ctx.globalAlpha = 1.0;
+
+    // ─── Exit marker (driehoek) op moment van WIN/LOSS ───
+    if(isClosed && p.exitPrice && p.exitTime){
+      const exitIdx = findIdx(p.exitTime);
+      if(exitIdx >= 0){
+        const xExit = toX(exitIdx);
+        const yExit = toY(p.exitPrice);
+        ctx.fillStyle = isWin ? '#15803d' : '#dc2626';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if(isWin){
+          ctx.moveTo(xExit, yExit - 7);
+          ctx.lineTo(xExit - 5, yExit + 3);
+          ctx.lineTo(xExit + 5, yExit + 3);
+        } else {
+          ctx.moveTo(xExit, yExit + 7);
+          ctx.lineTo(xExit - 5, yExit - 3);
+          ctx.lineTo(xExit + 5, yExit - 3);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Klein P&L label naast exit marker
+        if(p.pnlPt != null){
+          const pnlTxt = (p.pnlPt >= 0 ? '+' : '') + p.pnlPt.toFixed(1);
+          ctx.font = 'bold 9px IBM Plex Mono';
+          const pw = ctx.measureText(pnlTxt).width + 5;
+          ctx.fillStyle = isWin ? '#15803d' : '#dc2626';
+          ctx.globalAlpha = 0.9;
+          ctx.fillRect(xExit + 7, yExit - 6, pw, 12);
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pnlTxt, xExit + 9, yExit);
+          ctx.globalAlpha = 1.0;
+        }
+      }
+    }
+  });
+
+  // ─── 7. ACTIEVE TRADE — extra full-width labels rechts (zoals voorheen) ───
+  if(trade){
+    const drawLine = (price, color, label, dashed) => {
+      const y = toY(price);
+      if(y < cT || y > cB) return;
+      // Stippellijn over hele breedte (nét achter de segmenten heen)
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
+      ctx.globalAlpha = 0.35;
+      ctx.setLineDash(dashed ? [6, 3] : [3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(cL, y);
+      ctx.lineTo(cR, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1.0;
+      // Label rechts in een gekleurd vakje (TradingView-stijl)
+      const lblText = `${label} ${price.toFixed(2)}`;
+      ctx.font = 'bold 10px IBM Plex Mono';
+      ctx.fillStyle = color;
+      ctx.fillRect(cR, y - 8, AXIS_R, 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(lblText, cR + AXIS_R/2, y);
+    };
+    drawLine(trade.tgt, '#15803d', 'TGT', true);
+    drawLine(trade.entry, '#1d4ed8', 'ENT', false);
+    drawLine(trade.stop, '#dc2626', 'STP', true);
+  }
+
+  // ─── 9. CURRENT PRICE LABEL (rechts, gekleurd vakje) ───
+  if(candles.length > 0){
+    const lastCandle = candles[candles.length - 1];
+    const lastPrice = +lastCandle.c;
+    const prevPrice = candles.length > 1 ? +candles[candles.length-2].c : lastPrice;
+    const isUp = lastPrice >= prevPrice;
+    const lastY = toY(lastPrice);
+    const col = isUp ? '#15803d' : '#dc2626';
+    ctx.fillStyle = col;
+    ctx.fillRect(cR, lastY - 9, AXIS_R, 18);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lastPrice.toFixed(2), cR + AXIS_R/2, lastY);
+
+    // Stippellijntje van laatste close naar prijs-label
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 0.6;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cL, lastY);
+    ctx.lineTo(cR, lastY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+window.addEventListener('resize', resizeChart);
+
+// ─── CHART ZOOM/SCROLL HANDLERS ───
+window.chartZoom = function(factor){
+  chartZoomCount = Math.max(CHART_ZOOM_MIN, Math.min(CHART_ZOOM_MAX, Math.round(chartZoomCount * factor)));
+  $('chart-zoom-info').textContent = chartZoomCount + 'c';
+  drawChart();
+};
+
+window.chartScroll = function(delta){
+  const total = cBufForChart.length;
+  chartScrollOffset = Math.max(0, Math.min(total - chartZoomCount, chartScrollOffset + delta));
+  updateScrollBar();
+  drawChart();
+};
+
+window.chartReset = function(){
+  chartScrollOffset = 0;
+  chartZoomCount = 120;
+  $('chart-zoom-info').textContent = chartZoomCount + 'c';
+  updateScrollBar();
+  drawChart();
+};
+
+window.onScrollChange = function(val){
+  // val 0 = oudste, 100 = nieuwste (NU)
+  const total = cBufForChart.length;
+  const maxOffset = Math.max(0, total - chartZoomCount);
+  // Inverteer: slider 100 = offset 0
+  chartScrollOffset = Math.round(maxOffset * (1 - val/100));
+  // Update info label
+  if(chartScrollOffset === 0){
+    $('chart-scroll-info').textContent = 'NU';
+  } else {
+    const minutesBack = chartScrollOffset;
+    if(minutesBack < 60) $('chart-scroll-info').textContent = `-${minutesBack}m`;
+    else if(minutesBack < 1440) $('chart-scroll-info').textContent = `-${Math.floor(minutesBack/60)}h${minutesBack%60}m`;
+    else $('chart-scroll-info').textContent = `-${Math.floor(minutesBack/1440)}d`;
+  }
+  drawChart();
+};
+
+function updateScrollBar(){
+  const total = cBufForChart.length;
+  const maxOffset = Math.max(0, total - chartZoomCount);
+  const pct = maxOffset > 0 ? (1 - chartScrollOffset/maxOffset) * 100 : 100;
+  $('chart-scroll').value = pct;
+  if(chartScrollOffset === 0){
+    $('chart-scroll-info').textContent = 'NU';
+  } else {
+    const m = chartScrollOffset;
+    if(m < 60) $('chart-scroll-info').textContent = `-${m}m`;
+    else if(m < 1440) $('chart-scroll-info').textContent = `-${Math.floor(m/60)}h${m%60}m`;
+    else $('chart-scroll-info').textContent = `-${Math.floor(m/1440)}d`;
+  }
+  $('chart-zoom-info').textContent = chartZoomCount + 'c';
+}
+
+// Mouse wheel zoom op canvas (Ctrl+wheel = zoom, plain wheel = scroll)
+if(canvas){
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    if(e.ctrlKey || e.metaKey){
+      // Zoom
+      chartZoom(e.deltaY > 0 ? 1.2 : 0.85);
+    } else {
+      // Scroll
+      const direction = e.deltaY > 0 || e.deltaX > 0 ? 1 : -1;
+      chartScroll(direction * Math.max(3, Math.floor(chartZoomCount / 20)));
+    }
+  }, { passive: false });
+
+  // Drag to scroll
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartOffset = 0;
+  canvas.addEventListener('mousedown', e => {
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartOffset = chartScrollOffset;
+    canvas.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mousemove', e => {
+    if(!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const w = $('chart-wrap').clientWidth;
+    const candlesPerPx = chartZoomCount / Math.max(1, w);
+    const deltaCandles = Math.round(dx * candlesPerPx);
+    const total = cBufForChart.length;
+    chartScrollOffset = Math.max(0, Math.min(total - chartZoomCount, dragStartOffset + deltaCandles));
+    updateScrollBar();
+    drawChart();
+  });
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+    if(canvas) canvas.style.cursor = 'crosshair';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILTERS — chips + presets
+// ═══════════════════════════════════════════════════════════════════
+
+const PRESETS = {
+  off: () => {
+    skipScores = new Set();
+    skipHours = new Set();
+    setupMode = 'all';
+  },
+  balanced: () => {
+    skipScores = new Set([6]);
+    skipHours = new Set([16,17]);
+    setupMode = 'all';
+  },
+  quality: () => {
+    skipScores = new Set([3,6]);
+    skipHours = new Set([14,16,17]);
+    setupMode = 'real';
+  },
+  strict: () => {
+    skipScores = new Set([3,6]);
+    skipHours = new Set([14,16,17]);
+    setupMode = 'real';
+  }
+};
+
+function renderChips(){
+  const sChips = $('score-chips');
+  sChips.innerHTML = '';
+  SCORES.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'chip' + (skipScores.has(s) ? ' skip' : '');
+    el.textContent = s;
+    el.onclick = () => {
+      if(skipScores.has(s)) skipScores.delete(s); else skipScores.add(s);
+      renderChips();
+      saveFilters();
+      renderStats();
+    };
+    sChips.appendChild(el);
+  });
+
+  const hChips = $('hour-chips');
+  hChips.innerHTML = '';
+  HOURS.forEach(h => {
+    const el = document.createElement('div');
+    el.className = 'chip' + (skipHours.has(h) ? ' skip' : '');
+    el.textContent = String(h).padStart(2,'0');
+    el.onclick = () => {
+      if(skipHours.has(h)) skipHours.delete(h); else skipHours.add(h);
+      renderChips();
+      saveFilters();
+      renderStats();
+    };
+    hChips.appendChild(el);
+  });
+
+  $('setup-filter').value = setupMode;
+}
+
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    PRESETS[btn.dataset.preset]();
+    renderChips();
+    saveFilters();
+    renderStats();
+  };
+});
+
+$('setup-filter').onchange = e => {
+  setupMode = e.target.value;
+  saveFilters();
+  renderStats();
+};
+
+// Save params on change
+['p-tf','p-sl','p-tp','p-atrmax','p-maxbars','p-minscore','p-htf','p-dir','p-contracts','p-comm']
+  .forEach(id => $(id).addEventListener('change', saveParams));
+
+$('ex-contr').addEventListener('input', updExecRisk);
+
+// ═══════════════════════════════════════════════════════════════════
+// CSV SEED — laad TradingView CSV historiek voor instant warmup
+// ═══════════════════════════════════════════════════════════════════
+function parseSeedCSV(txt){
+  const lines = txt.trim().split(/\r?\n/);
+  const h = lines[0].replace(/"/g,'').toLowerCase().split(',');
+  const gi = k => h.findIndex(x => x.trim() === k || x.trim().includes(k));
+  const ti = gi('time'), oi = gi('open'), hi = gi('high'),
+        li = gi('low'), ci = gi('close'), vi = gi('volume');
+  if(ci < 0) throw new Error('Kolommen niet herkend (verwacht: time,open,high,low,close,volume)');
+  const out = [];
+  for(let i = 1; i < lines.length; i++){
+    const c = lines[i].replace(/"/g,'').split(',');
+    if(!c[ci]) continue;
+    let ts = (c[ti]||'').trim();
+    // UNIX timestamp → string
+    if(/^\d{9,11}$/.test(ts)){
+      const d = new Date(+ts * 1000);
+      const y = d.getUTCFullYear();
+      const mo = String(d.getUTCMonth()+1).padStart(2,'0');
+      const da = String(d.getUTCDate()).padStart(2,'0');
+      const hr = String(d.getUTCHours()).padStart(2,'0');
+      const mi = String(d.getUTCMinutes()).padStart(2,'0');
+      ts = `${y}-${mo}-${da} ${hr}:${mi}`;
+    }
+    const o = +c[oi]||0, hv = +c[hi]||0, lv = +c[li]||0, cv = +c[ci]||0;
+    if(cv > 0) out.push({t:ts, o, h:hv, l:lv, c:cv, v:+(c[vi]||c[6]||100)});
+  }
+  return out;
+}
+
+document.getElementById('seed-csv').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if(!f) return;
+  try {
+    lg(`CSV inlezen: ${f.name}…`, 'info');
+    const txt = await f.text();
+    const seedCandles = parseSeedCSV(txt);
+    if(seedCandles.length < 100){
+      alert(`CSV heeft maar ${seedCandles.length} candles. Aanbevolen: minstens 300 voor warmup.`);
+      return;
+    }
+
+    // Merge met bestaande buffer — vermijd duplicaten op tijdstempel
+    const existingTs = new Set(candleBuffer.map(c => c.t));
+    let added = 0;
+    const merged = [...seedCandles];
+    candleBuffer.forEach(c => {
+      if(!merged.find(s => s.t === c.t)) merged.push(c);
+    });
+    merged.sort((a,b) => a.t.localeCompare(b.t));
+
+    candleBuffer = merged.slice(-20000);
+    cBufForChart = candleBuffer; updateScrollBar();
+    candleCount = candleBuffer.length;
+    $('ts-candles').textContent = candleCount;
+    if(candleBuffer.length > 0){
+      lastCandleTs = candleBuffer[candleBuffer.length-1].t;
+    }
+    lg(`✓ Seed: ${seedCandles.length} candles → buffer = ${candleBuffer.length} (${candleBuffer[0].t.slice(0,10)} → ${candleBuffer[candleBuffer.length-1].t.slice(0,10)})`, 'ok');
+    drawChart();
+
+    // Reset cooldown zodat eerste live candle direct geanalyseerd wordt
+    lastCloseTime = 0;
+
+    alert(`✓ ${seedCandles.length} candles geladen. Engine heeft nu warmup. Klik CONNECT en wacht op live candle.`);
+    e.target.value = ''; // reset zodat zelfde file opnieuw geladen kan worden
+  } catch(err){
+    lg('CSV fout: '+err.message, 'err');
+    alert('CSV fout: '+err.message);
+  }
+});
+
+
+loadFilters();
+loadParams();
+loadPredictions();
+renderChips();
+renderPredictions();
+renderStats();
+setTimeout(() => { resizeChart(); updateScrollBar(); }, 100);
+lg('DAX Oracle LIVE v1 ready · Klik CONNECT om te starten', 'info');
+
+// Auto-connect if URL fields are pre-filled
+if($('srv-url').value && $('srv-sec').value){
+  setTimeout(() => {
+    if(!connected) {
+      lg('Auto-connecting…', 'info');
+      connect();
+    }
+  }, 500);
+}
+
+</script>
+</body>
+</html>
