@@ -463,6 +463,7 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
           <div style="display:flex;justify-content:space-between"><label>Direction</label><input type="text" id="gs-dir" value="both" style="width:65%;font-family:'IBM Plex Mono';font-size:13px;padding:2px 4px;border:1px solid var(--border);border-radius:3px"></div>
         </div>
         <button onclick="runLiveGridSearch()" style="margin-top:6px;width:100%;padding:6px;background:#1d4ed8;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:15px">🔍 Zoek beste strategie</button>
+        <button onclick="syncCandlesFromServer()" id="sync-btn" style="margin-top:4px;width:100%;padding:6px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:14px" title="Vervang local buffer door alle candles van de fast-server. Gebruik dit voor een 1-op-1 vergelijking met de server's grid output.">🔄 Sync candles van fast-server</button>
         <div id="gs-status" style="font-size:13px;color:var(--muted);margin-top:4px;font-family:'IBM Plex Mono'"></div>
       </div>
     </div>
@@ -650,7 +651,7 @@ let predictions = [];         // alle predictions (geladen uit localStorage + se
 let activePending = null;     // huidige pending limit setup
 let activeTrade = null;       // huidige live trade
 let lastSignalCandleIdx = -999; // cooldown: candle-index van laatste signaal (identiek aan backtest)
-let cooldownBars = 15;        // standaard = TF waarde (backtest-equivalent)
+let cooldownBars = 5;         // standaard = TF waarde (backtest-equivalent)
 
 // ─── CHART ZOOM/SCROLL state ───
 let chartZoomCount = 120;     // aantal candles in view (zoom level)
@@ -666,6 +667,26 @@ let curOrder = null;          // voor execute knop
 let skipScores = new Set([6]);
 let skipHours  = new Set([16,17]);
 let setupMode  = 'all';
+let currentPresetName = 'BAL';   // 'OFF' | 'BAL' | 'QUAL' | 'STRICT' — bepaalt rank-formule
+
+// ── Rank-formule per preset (afgesproken met user, identiek aan fast-server) ──
+//   OFF    = pnl                       (max P&L totaal)
+//   BAL    = ev * √n * (wr/0.5)        (balanced P&L × WR)
+//   QUAL   = ev * (wr/0.5)^2           (extra gewicht op WR)
+//   STRICT = wr * √n                   (max WR, met √n als minimum-robuustheid)
+function computeRank(stats, presetName){
+  const wr = stats.wr;          // 0..1 in deze codebase
+  const n  = Math.max(1, stats.n);
+  const ev = stats.ev;
+  const pnl = stats.pnl;
+  switch(presetName || currentPresetName){
+    case 'OFF':    return pnl;
+    case 'QUAL':   return ev * Math.pow(wr / 0.5, 2);
+    case 'STRICT': return wr * Math.sqrt(n);
+    case 'BAL':
+    default:       return ev * Math.sqrt(n) * (wr / 0.5);
+  }
+}
 
 const SCORES = [3,4,5,6,7,8,9,10,11,12];
 const HOURS  = Array.from({length:24}, (_,i)=>i);
@@ -2049,6 +2070,51 @@ function updateGridBufferInfo(){
   if(!$('gs-to').value) $('gs-to').value = toLocalInput(last);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// SYNC: vervang local candle-buffer door candles van fast-server
+// (Voor de 1-op-1 vergelijking: zelfde data → moet zelfde grid-output geven)
+// ═══════════════════════════════════════════════════════════════════
+async function syncCandlesFromServer(){
+  if(!serverUrl){alert('Eerst connect naar server.');return;}
+  const btn = $('sync-btn');
+  const orig = btn.textContent;
+  btn.textContent = '⏳ Bezig met ophalen…';
+  btn.disabled = true;
+  try {
+    // Gebruik bestaande /candles endpoint met grote n
+    const url = serverUrl.replace(/\/$/,'') + '/candles?n=100000';
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const serverCandles = await res.json();
+    if(!Array.isArray(serverCandles) || serverCandles.length === 0){
+      throw new Error('Geen candles ontvangen van server');
+    }
+    // Normaliseer naar master format {t,o,h,l,c,v}
+    const normalized = serverCandles.map(c => ({
+      t: c.bucket || c.t,
+      o: +c.o, h: +c.h, l: +c.l, c: +c.c,
+      v: +(c.v || 0)
+    })).filter(c => c.t && !isNaN(c.o) && !isNaN(c.c));
+    // Sorteer chronologisch
+    normalized.sort((a,b) => (a.t||'').localeCompare(b.t||''));
+    // Vervang buffer
+    candleBuffer = normalized;
+    cBufForChart = [...normalized];
+    candleCount = normalized.length;
+    lg(`🔄 Sync van server: ${normalized.length} candles geladen (${normalized[0].t} → ${normalized[normalized.length-1].t})`, 'ok');
+    updateGridBufferInfo();
+    // Reset date inputs zodat full range wordt gebruikt bij volgende grid run
+    $('gs-from').value = '';
+    $('gs-to').value = '';
+    btn.textContent = '✅ Sync OK · ' + normalized.length + ' candles';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  } catch(err){
+    lg(`❌ Sync gefaald: ${err.message}`, 'err');
+    btn.textContent = '❌ ' + err.message.slice(0,30);
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  }
+}
+
 function runLiveGridSearch(){
   if(candleBuffer.length < 300){alert('Niet genoeg candles (min 300). Upload een CSV of wacht op meer data.');return;}
 
@@ -2095,11 +2161,11 @@ function runLiveGridSearch(){
     const results = [];
     for(let i=0;i<combos.length;i++){
       const s = gridSearchEngine(filteredCandles, combos[i]);
-      if(s && s.n >= 2) results.push({params:combos[i], stats:s, rank: s.ev * Math.sqrt(Math.max(1,s.n)) * (s.wr/0.5)});
+      if(s && s.n >= 20) results.push({params:combos[i], stats:s, rank: computeRank(s)});
     }
     results.sort((a,b)=>b.rank-a.rank);
     $('gs-status').textContent = `✅ ${results.length} resultaten (${combos.length} combinaties)`;
-    lg(`✅ Grid search klaar: ${results.length} resultaten met ≥2 trades`, 'ok');
+    lg(`✅ Grid search klaar: ${results.length} resultaten met ≥20 trades · preset=${currentPresetName}`, 'ok');
     showGridSearchResults(results, filteredCandles);
   }, 50);
 }
@@ -2507,8 +2573,8 @@ function computePerSessionBest(results, candles){
 
     for(const r of topGlobal){
       const res = gridSearchEngine(sc, {...r.params, commission: comm});
-      if(res && res.n >= 2){
-        const rank = res.ev * Math.sqrt(Math.max(1, res.n)) * (res.wr / 0.5);
+      if(res && res.n >= 5){
+        const rank = computeRank(res);
         if(!best || rank > best.rank){
           best = {params: r.params, stats: res, rank};
         }
@@ -3896,21 +3962,27 @@ const PRESETS = {
     skipScores = new Set();
     skipHours = new Set();
     setupMode = 'all';
+    currentPresetName = 'OFF';
   },
   balanced: () => {
     skipScores = new Set([6]);
     skipHours = new Set([18,19]);
     setupMode = 'all';
+    currentPresetName = 'BAL';
   },
   quality: () => {
     skipScores = new Set([3,6]);
     skipHours = new Set([16,18,19]);
     setupMode = 'real';
+    currentPresetName = 'QUAL';
   },
   strict: () => {
+    // STRICT = identieke filter als QUAL, verschil zit in rank-formule (wr × √n).
+    // Bedoeling: max winrate boven alles.
     skipScores = new Set([3,6]);
     skipHours = new Set([16,18,19]);
     setupMode = 'real';
+    currentPresetName = 'STRICT';
   }
 };
 
