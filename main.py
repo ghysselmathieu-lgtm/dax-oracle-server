@@ -23,7 +23,7 @@ tf_data        = {"1":{},"5":{},"15":{},"30":{},"60":{}}  # MTF snapshot
 predictions    = []        # signalen + outcomes voor cross-session tracking
 order_history  = []        # uitgevoerde orders
 
-MAX_HISTORY     = 100000   # ~69 dagen 1-min data (geen praktische limiet)
+MAX_HISTORY     = 100000   # ~69 dagen 1-min data
 MAX_PREDICTIONS = 5000
 
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "dax-oracle-secret")
